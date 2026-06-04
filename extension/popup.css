@@ -43,6 +43,10 @@ textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
 }
 .preview-subject { font-weight: 600; padding: 8px 8px 0; }
 .preview-subject:empty { display: none; }
+.preview-meta { padding: 8px 8px 0; font-size: 12px; }
+.preview-meta:empty { display: none; }
+.pv-line { margin-bottom: 2px; word-break: break-word; }
+.pv-line .k { color: var(--muted); font-weight: 600; }
 .preview-body { white-space: pre-wrap; padding: 6px 8px 10px; font-size: 13px; line-height: 1.45; max-height: 220px; overflow: auto; }
 .actions { display: flex; gap: 8px; }
 button { font: inherit; padding: 8px 12px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }

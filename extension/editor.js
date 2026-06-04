@@ -133,6 +133,14 @@
       t.subject = v; rebuildFields(); updatePreview();
     }));
 
+    var recHdr = document.createElement("div");
+    recHdr.className = "group-label"; recHdr.style.marginTop = "2px";
+    recHdr.textContent = "Recipients (optional) — type fixed addresses or use {{fields}}; separate several with ;";
+    pane.appendChild(recHdr);
+    pane.appendChild(rowInput("To", "f-to", t.to || "", function (v) { t.to = v; rebuildFields(); updatePreview(); }));
+    pane.appendChild(rowInput("Cc", "f-cc", t.cc || "", function (v) { t.cc = v; rebuildFields(); updatePreview(); }));
+    pane.appendChild(rowInput("Bcc", "f-bcc", t.bcc || "", function (v) { t.bcc = v; rebuildFields(); updatePreview(); }));
+
     // body + toolbar
     var bodyRow = document.createElement("div");
     bodyRow.className = "row";
@@ -165,7 +173,7 @@
     // preview
     var pw = document.createElement("div");
     pw.className = "preview-wrap";
-    pw.innerHTML = '<div class="ph">Preview (using default values)</div><div class="pv-subj" id="pv-subj"></div><div class="pv-body" id="pv-body"></div>';
+    pw.innerHTML = '<div class="ph">Preview (using default values)</div><div class="pv-meta" id="pv-meta"></div><div class="pv-body" id="pv-body"></div>';
     pane.appendChild(pw);
 
     rebuildFields();
@@ -185,7 +193,7 @@
   // ---- fields (slots) -----------------------------------------------------
   function uniqueTokens(t) {
     var ids = [], seen = {};
-    [t.subject, t.body].forEach(function (s) {
+    [t.to, t.cc, t.bcc, t.subject, t.body].forEach(function (s) {
       var m; TOKEN.lastIndex = 0;
       while ((m = TOKEN.exec(s || "")) !== null) { if (!seen[m[1]]) { seen[m[1]] = 1; ids.push(m[1]); } }
     });
@@ -403,9 +411,20 @@
   }
   function updatePreview() {
     var t = cur(); if (!t) return;
-    var subj = byId("pv-subj"), body = byId("pv-body");
-    if (subj) subj.textContent = cleanSubject(resolvePreview(t.subject, t));
+    var meta = [];
+    var to = recipPreview(t.to, t); if (to) meta.push(["To", to]);
+    var cc = recipPreview(t.cc, t); if (cc) meta.push(["Cc", cc]);
+    var bcc = recipPreview(t.bcc, t); if (bcc) meta.push(["Bcc", bcc]);
+    var subj = cleanSubject(resolvePreview(t.subject, t)); if (subj) meta.push(["Subject", subj]);
+    var m = byId("pv-meta");
+    if (m) m.innerHTML = meta.map(function (x) {
+      return '<div class="pv-line"><span class="k">' + x[0] + ':</span> ' + esc(x[1]) + "</div>";
+    }).join("");
+    var body = byId("pv-body");
     if (body) body.textContent = cleanBody(resolvePreview(t.body, t));
+  }
+  function recipPreview(str, t) {
+    return resolvePreview(str, t).split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).join("; ");
   }
 
   // ---- save ---------------------------------------------------------------
@@ -428,6 +447,7 @@
     return String(text).replace(/[ \t]+(\r?\n)/g, "$1").replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "");
   }
   function cleanSubject(text) { return String(text).replace(/\s{2,}/g, " ").trim(); }
+  function esc(text) { return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function prettify(id) { return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
   function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40); }
   function uid(name) { return (slug(name) || "tpl") + "-" + Date.now().toString(36); }

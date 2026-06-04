@@ -1,16 +1,17 @@
 /* PEOPL Email Templates — popup (the "use a template" view).
  * Loads templates from storage (PEOPL_STORE), renders a control for every
- * {{token}}, shows a live preview, and inserts into the Outlook compose box in
- * the active tab. Optional fields get an include/skip checkbox. Copy is a fallback. */
+ * {{token}} (in recipients, subject and body), shows a live preview, and fills
+ * the Outlook compose window: body at the cursor, plus Subject / To / Cc / Bcc.
+ * Optional fields get an include/skip checkbox. Copy is a fallback. */
 (function () {
   "use strict";
 
   var els = {};
-  var TEMPLATES = [];   // working set (from storage, falls back to bundled defaults)
-  var current = null;   // selected template
-  var values = {};      // slot id -> current string value
-  var included = {};    // slot id -> whether to insert it (optional fields can be off)
-  var tokenOrder = [];  // slot ids in first-appearance order
+  var TEMPLATES = [];
+  var current = null;
+  var values = {};
+  var included = {};
+  var tokenOrder = [];
   var TOKEN = /\{\{\s*([\w.\-]+)\s*\}\}/g;
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -25,7 +26,7 @@
 
   // ---- setup --------------------------------------------------------------
   function cacheEls() {
-    ["app", "tpl", "slots", "pv-subject", "pv-body", "btn-insert", "btn-copy", "btn-edit", "status"]
+    ["app", "tpl", "slots", "pv-meta", "pv-body", "btn-insert", "btn-copy", "btn-edit", "status"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
   }
 
@@ -93,8 +94,8 @@
     included = {};
     tokenOrder = [];
     var seen = {};
-    tokensIn(t.subject).concat(tokensIn(t.body)).forEach(function (id) {
-      if (!seen[id]) { seen[id] = true; tokenOrder.push(id); }
+    [t.to, t.cc, t.bcc, t.subject, t.body].forEach(function (s) {
+      tokensIn(s).forEach(function (id) { if (!seen[id]) { seen[id] = true; tokenOrder.push(id); } });
     });
 
     els.slots.innerHTML = "";
@@ -176,30 +177,40 @@
       return (values[id] != null) ? values[id] : whole;
     });
   }
-  // Collapse the gaps left by omitted fields: trim spaces before newlines,
-  // squeeze 3+ blank lines down to one, and trim the ends.
   function cleanBody(text) {
-    return String(text)
-      .replace(/[ \t]+(\r?\n)/g, "$1")
-      .replace(/\n{3,}/g, "\n\n")
-      .replace(/^\s+|\s+$/g, "");
+    return String(text).replace(/[ \t]+(\r?\n)/g, "$1").replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "");
   }
-  function cleanSubject(text) {
-    return String(text).replace(/\s{2,}/g, " ").trim();
+  function cleanSubject(text) { return String(text).replace(/\s{2,}/g, " ").trim(); }
+  function recipients(str) {
+    if (!str) return "";
+    return resolve(str).split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).join("; ");
   }
   function resolvedBody() { return cleanBody(resolve(current.body)); }
-  function resolvedSubject() { return cleanSubject(resolve(current.subject)); }
+  function resolvedSubject() { return current.subject ? cleanSubject(resolve(current.subject)) : ""; }
 
   function updatePreview() {
     if (!current) return;
-    els.pvSubject.textContent = resolvedSubject();
+    var meta = [];
+    var to = recipients(current.to); if (to) meta.push(["To", to]);
+    var cc = recipients(current.cc); if (cc) meta.push(["Cc", cc]);
+    var bcc = recipients(current.bcc); if (bcc) meta.push(["Bcc", bcc]);
+    var subj = resolvedSubject(); if (subj) meta.push(["Subject", subj]);
+    els.pvMeta.innerHTML = meta.map(function (m) {
+      return '<div class="pv-line"><span class="k">' + m[0] + ':</span> ' + esc(m[1]) + "</div>";
+    }).join("");
     els.pvBody.textContent = resolvedBody();
   }
 
-  // ---- insert into the Outlook compose box (active tab) --------------------
+  // ---- fill the Outlook compose window (active tab) -----------------------
   function onInsert() {
     if (!current) return;
-    var html = textToHtml(resolvedBody());
+    var payload = {
+      bodyHtml: textToHtml(resolvedBody()),
+      subject: resolvedSubject(),
+      to: recipients(current.to),
+      cc: recipients(current.cc),
+      bcc: recipients(current.bcc)
+    };
     if (typeof chrome === "undefined" || !chrome.scripting || !chrome.tabs) {
       setStatus("Insert works inside the browser extension — use Copy here.", "err");
       return;
@@ -208,71 +219,125 @@
       var tab = tabs && tabs[0];
       if (!tab || tab.id == null) { setStatus("No active tab found.", "err"); return; }
       chrome.scripting.executeScript(
-        { target: { tabId: tab.id }, func: pageInsert, args: [html] },
+        { target: { tabId: tab.id }, func: pageFill, args: [payload] },
         function (results) {
           if (chrome.runtime.lastError) {
-            setStatus("Can't insert on this page — use Copy, then paste.", "err");
+            setStatus("Can't fill on this page — use Copy, then paste.", "err");
             return;
           }
-          var r = results && results[0] && results[0].result;
-          if (r && r.ok) setStatus("Inserted into your email ✓", "ok");
-          else setStatus("Couldn't find the message box. Click into the email body, then Insert — or use Copy.", "err");
+          var r = (results && results[0] && results[0].result) || {};
+          setStatus(summarize(payload, r), r.body ? "ok" : "err");
         }
       );
     });
   }
 
-  /* Runs INSIDE the Outlook page (serialized by executeScript). Self-contained:
-     uses only its argument and page globals. Inserts html at the caret of the
-     focused/largest editable region. */
-  function pageInsert(html) {
+  function summarize(payload, r) {
+    var done = [], missed = [];
+    if (payload.bodyHtml) (r.body ? done : missed).push("body");
+    if (payload.subject) (r.subject ? done : missed).push("subject");
+    if (payload.to) (r.to ? done : missed).push("To");
+    if (payload.cc) (r.cc ? done : missed).push("Cc");
+    if (payload.bcc) (r.bcc ? done : missed).push("Bcc");
+    if (!missed.length) return "Filled ✓ (" + done.join(", ") + ")";
+    if (!done.length) return "Couldn't fill the compose window — use Copy, then paste.";
+    return "Filled " + done.join(", ") + "; couldn't set " + missed.join(", ") + " — set those manually.";
+  }
+
+  /* Runs INSIDE the Outlook page (serialized by executeScript). Self-contained.
+     Inserts body at the caret, then sets Subject / To / Cc / Bcc best-effort. */
+  function pageFill(payload) {
+    var report = { body: false, subject: false, to: false, cc: false, bcc: false };
+
+    function visible(el) { return el && el.offsetParent !== null; }
+    function findOne(selectors) {
+      for (var i = 0; i < selectors.length; i++) {
+        var list = document.querySelectorAll(selectors[i]);
+        for (var j = 0; j < list.length; j++) if (visible(list[j])) return list[j];
+      }
+      return null;
+    }
+    function setNativeValue(el, val) {
+      var proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      var desc = Object.getOwnPropertyDescriptor(proto, "value");
+      if (desc && desc.set) desc.set.call(el, val); else el.value = val;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    function pressEnter(el) {
+      ["keydown", "keypress", "keyup"].forEach(function (type) {
+        el.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
+      });
+    }
     function isEditable(el) {
       return !!(el && (el.isContentEditable ||
-        (el.getAttribute && (el.getAttribute("contenteditable") === "true" ||
-                             el.getAttribute("contenteditable") === ""))));
+        (el.getAttribute && (el.getAttribute("contenteditable") === "true" || el.getAttribute("contenteditable") === ""))));
     }
-    var sel = window.getSelection();
-    var editable = document.activeElement;
 
-    if (!isEditable(editable) && sel && sel.rangeCount) {
-      var node = sel.anchorNode;
-      while (node && node.nodeType === 3) node = node.parentNode;
-      while (node && !isEditable(node)) node = node.parentElement;
-      if (node) editable = node;
+    // 1) BODY first, while the caret is still in the message body.
+    if (payload.bodyHtml) {
+      var sel = window.getSelection();
+      var editable = document.activeElement;
+      if (!isEditable(editable) && sel && sel.rangeCount) {
+        var node = sel.anchorNode;
+        while (node && node.nodeType === 3) node = node.parentNode;
+        while (node && !isEditable(node)) node = node.parentElement;
+        if (node) editable = node;
+      }
+      if (!isEditable(editable)) {
+        var cands = Array.prototype.slice.call(
+          document.querySelectorAll('[contenteditable="true"],[contenteditable=""],[role="textbox"]'))
+          .filter(function (e) { return e.offsetParent !== null; });
+        cands.sort(function (a, b) { return (b.offsetWidth * b.offsetHeight) - (a.offsetWidth * a.offsetHeight); });
+        editable = cands[0];
+      }
+      if (isEditable(editable)) {
+        editable.focus();
+        try {
+          var s = window.getSelection(), range;
+          if (s && s.rangeCount && editable.contains(s.anchorNode)) range = s.getRangeAt(0);
+          else { range = document.createRange(); range.selectNodeContents(editable); range.collapse(false); s.removeAllRanges(); s.addRange(range); }
+          var ok = false;
+          try { ok = document.execCommand("insertHTML", false, payload.bodyHtml); } catch (e) { ok = false; }
+          if (!ok) { range.deleteContents(); range.insertNode(range.createContextualFragment(payload.bodyHtml)); }
+          report.body = true;
+        } catch (e) { report.body = false; }
+      }
     }
-    if (!isEditable(editable)) {
-      var cands = Array.prototype.slice.call(
-        document.querySelectorAll('[contenteditable="true"],[contenteditable=""],[role="textbox"]'));
-      cands = cands.filter(function (e) { return e.offsetParent !== null; });
-      cands.sort(function (a, b) {
-        return (b.offsetWidth * b.offsetHeight) - (a.offsetWidth * a.offsetHeight);
+
+    // 2) SUBJECT (reliable: plain input).
+    if (payload.subject) {
+      var subj = findOne(['input[aria-label="Add a subject"]', 'input[aria-label*="subject" i]',
+                          'input[placeholder*="subject" i]', 'input[id*="Subject" i]']);
+      if (subj) { setNativeValue(subj, payload.subject); report.subject = true; }
+    }
+
+    // 3) RECIPIENTS (best-effort: type each address + Enter to tokenise).
+    function fillRecip(kind, value) {
+      if (!value) return false;
+      var labels = { to: ["To"], cc: ["Cc"], bcc: ["Bcc"] }[kind];
+      var sel = [];
+      labels.forEach(function (L) {
+        sel.push('input[aria-label="' + L + '"]');
+        sel.push('input[aria-label*="' + L + '" i]');
+        sel.push('div[role="textbox"][aria-label*="' + L + '" i]');
+        sel.push('[contenteditable="true"][aria-label*="' + L + '" i]');
       });
-      editable = cands[0];
+      var field = findOne(sel);
+      if (!field) return false;
+      field.focus();
+      value.split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (a) {
+        if (field.tagName === "INPUT" || field.tagName === "TEXTAREA") setNativeValue(field, a);
+        else { field.textContent = a; field.dispatchEvent(new Event("input", { bubbles: true })); }
+        pressEnter(field);
+      });
+      return true;
     }
-    if (!isEditable(editable)) return { ok: false, reason: "no-editable" };
+    report.to = fillRecip("to", payload.to);
+    report.cc = fillRecip("cc", payload.cc);
+    report.bcc = fillRecip("bcc", payload.bcc);
 
-    editable.focus();
-    try {
-      var s = window.getSelection(), range;
-      if (s && s.rangeCount && editable.contains(s.anchorNode)) {
-        range = s.getRangeAt(0);
-      } else {
-        range = document.createRange();
-        range.selectNodeContents(editable);
-        range.collapse(false);
-        s.removeAllRanges();
-        s.addRange(range);
-      }
-      var ok = false;
-      try { ok = document.execCommand("insertHTML", false, html); } catch (e) { ok = false; }
-      if (!ok) {
-        range.deleteContents();
-        range.insertNode(range.createContextualFragment(html));
-      }
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, reason: String(e) };
-    }
+    return report;
   }
 
   // ---- copy ---------------------------------------------------------------
@@ -281,7 +346,7 @@
     var text = resolvedBody();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
-        function () { setStatus("Copied to clipboard ✓ — paste into your email.", "ok"); },
+        function () { setStatus("Copied body ✓ — paste into your email.", "ok"); },
         function () { setStatus("Copy failed — select the preview text and copy manually.", "err"); }
       );
     } else {
@@ -291,8 +356,10 @@
 
   // ---- utilities ----------------------------------------------------------
   function textToHtml(text) {
-    var esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return esc.replace(/\r\n|\r|\n/g, "<br>");
+    return esc(text).replace(/\r\n|\r|\n/g, "<br>");
+  }
+  function esc(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
   function prettify(id) {
     return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });

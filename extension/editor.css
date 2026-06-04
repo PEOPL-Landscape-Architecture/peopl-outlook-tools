@@ -74,4 +74,8 @@ textarea#f-body { min-height: 200px; font-family: "Cascadia Mono", Consolas, mon
 .preview-wrap .ph { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
   background: var(--chip); padding: 6px 10px; }
 .pv-subj { font-weight: 600; padding: 10px 10px 0; }
+.pv-meta { padding: 10px 10px 0; font-size: 13px; }
+.pv-meta:empty { display: none; }
+.pv-line { margin-bottom: 2px; word-break: break-word; }
+.pv-line .k { color: var(--muted); font-weight: 600; }
 .pv-body { white-space: pre-wrap; padding: 8px 10px 12px; line-height: 1.5; }

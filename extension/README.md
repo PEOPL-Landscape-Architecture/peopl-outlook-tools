@@ -23,11 +23,12 @@ developer mode extensions" nudge on browser start — just dismiss it.)
 2. **Click into the message body** (so the cursor is there).
 3. Click the **PEOPL Email Templates** toolbar icon.
 4. Pick a template, set the dropdowns, fill in the fields — preview updates live.
-5. **Insert into email** drops it at your cursor. (If it can't find the box, use
-   **Copy** and paste — Ctrl+V.)
+5. **Insert into email** fills the **body** at your cursor, plus the **Subject** and any
+   **To / Cc / Bcc** the template carries. The status line reports what landed.
 
-> The subject is shown in the preview for reference; the extension inserts the
-> **body** at your cursor. Type/paste the subject yourself.
+> Subject is reliable; recipient boxes are **best-effort** on Outlook web (it's a fussy
+> custom control). Glance at them after inserting — if one didn't fill, set it manually,
+> or use **Copy** for the body. Everything is shown in the preview so it's easy to check.
 
 ## Creating & editing templates (no code)
 
@@ -37,6 +38,9 @@ the toolbar icon → **Options**. That opens the built-in editor:
 - **+ New template** — start a fresh one (comes pre-wired with `{{client}}` and `{{signoff}}`).
 - **Template name / Subject / Email body** — type your email. Put a `{{field}}` wherever
   a bit should be fill-in or a dropdown, e.g. `Hi {{client}},`.
+- **Recipients (To / Cc / Bcc)** — optional. Type **fixed addresses** (e.g.
+  `studio@lynxlandscaping.com`), or use a `{{field}}` to be prompted each time
+  (e.g. `{{clientEmail}}`). Separate several with `;`.
 - **Make selected text a field** — highlight a word/phrase in the body and click this to
   turn it into a `{{field}}` (the highlighted text becomes its default value).
 - **Fields** — each `{{field}}` gets a card. Pick its type:
