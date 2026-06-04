@@ -215,14 +215,13 @@
       setStatus("Insert works inside the browser extension — use Copy here.", "err");
       return;
     }
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      var tab = tabs && tabs[0];
-      if (!tab || tab.id == null) { setStatus("No active tab found.", "err"); return; }
+    resolveOutlookTab(function (tabId) {
+      if (tabId == null) { setStatus("Open Outlook in a window first, then click Insert.", "err"); return; }
       chrome.scripting.executeScript(
-        { target: { tabId: tab.id }, func: pageFill, args: [payload] },
+        { target: { tabId: tabId }, func: pageFill, args: [payload] },
         function (results) {
           if (chrome.runtime.lastError) {
-            setStatus("Can't fill on this page — use Copy, then paste.", "err");
+            setStatus("Couldn't reach the Outlook window — use Copy, then paste.", "err");
             return;
           }
           var r = (results && results[0] && results[0].result) || {};
@@ -230,6 +229,33 @@
         }
       );
     });
+  }
+
+  // Find the Outlook tab to act on: the one the launcher remembered, else any
+  // open Outlook tab (works whether Outlook is a normal tab or an app/PWA window).
+  function resolveOutlookTab(cb) {
+    function ok(url) {
+      return /^https:\/\/([^/]*\.)?(outlook\.(office|office365|live)\.com|outlook\.cloud\.microsoft)\//.test(url || "");
+    }
+    function fallback() {
+      chrome.tabs.query({}, function (tabs) {
+        var hits = (tabs || []).filter(function (t) { return ok(t.url); });
+        var pick = hits.filter(function (t) { return t.active; })[0] || hits[0];
+        cb(pick ? pick.id : null);
+      });
+    }
+    if (chrome.storage && chrome.storage.session) {
+      chrome.storage.session.get("targetTabId", function (res) {
+        var id = res && res.targetTabId;
+        if (id == null) return fallback();
+        chrome.tabs.get(id, function (tab) {
+          if (!chrome.runtime.lastError && tab && ok(tab.url)) cb(tab.id);
+          else fallback();
+        });
+      });
+    } else {
+      fallback();
+    }
   }
 
   function summarize(payload, r) {

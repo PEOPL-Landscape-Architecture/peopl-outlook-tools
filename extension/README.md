@@ -17,15 +17,20 @@ as a fallback that works anywhere).
 It stays installed across restarts. (Developer-mode extensions show a "Disable
 developer mode extensions" nudge on browser start — just dismiss it.)
 
-Clicking the toolbar icon opens a **docked side panel** beside Outlook that **stays open**
-while you work (no more popup closing when you click into the email). **Drag its inner edge**
-to make it wider/taller — the browser remembers the size.
+Clicking the toolbar icon — or pressing **Alt+Shift+E** — opens the tool in its own
+**resizable window** that floats beside Outlook and **stays open** while you work. This works
+whether Outlook is a normal browser tab **or installed as an app / PWA** (app windows don't
+show the toolbar popup or side panel, so a separate window is used). Snap it next to Outlook
+with **Win + ←/→**; resize it to whatever's comfortable.
+
+> Inside an Outlook **app window** there's no toolbar icon — use **Alt+Shift+E**, or the app
+> window's **"…" → Extensions → PEOPL Email Templates**, to open the tool.
 
 ## Use it
 
 1. Open **Outlook on the web** and start a **new email / reply**.
 2. **Click into the message body** (so the cursor is there).
-3. Click the **PEOPL Email Templates** toolbar icon to open the docked **side panel** (it stays open).
+3. Open the tool with **Alt+Shift+E** (works inside the Outlook app window) or the toolbar icon.
 4. Pick a template, set the dropdowns, fill in the fields — preview updates live.
 5. **Insert into email** fills the **body** at your cursor, plus the **Subject** and any
    **To / Cc / Bcc** the template carries. The status line reports what landed.
@@ -36,8 +41,8 @@ to make it wider/taller — the browser remembers the size.
 
 ## Creating & editing templates (no code)
 
-Click the extension icon, then **✎ Edit** (top-right of the panel) — or right-click
-the toolbar icon → **Options**. That opens the built-in editor in a full tab:
+In the tool window, click **✎ Edit** (top-right) — or right-click the toolbar icon →
+**Options**. That opens the built-in editor in a full tab:
 
 - **+ New template** — start a fresh one (comes pre-wired with `{{client}}` and `{{signoff}}`).
 - **Template name / Subject / Email body** — type your email. Put a `{{field}}` wherever
