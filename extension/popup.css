@@ -17,7 +17,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  width: 360px;
+  /* Fluid: fills the side panel; the user can drag the panel wider/taller. */
+  min-width: 280px;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 14px; color: var(--fg); background: var(--bg); padding: 12px;
 }
@@ -47,7 +48,7 @@ textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
 .preview-meta:empty { display: none; }
 .pv-line { margin-bottom: 2px; word-break: break-word; }
 .pv-line .k { color: var(--muted); font-weight: 600; }
-.preview-body { white-space: pre-wrap; padding: 6px 8px 10px; font-size: 13px; line-height: 1.45; max-height: 220px; overflow: auto; }
+.preview-body { white-space: pre-wrap; padding: 6px 8px 10px; font-size: 13px; line-height: 1.45; max-height: 50vh; overflow: auto; }
 .actions { display: flex; gap: 8px; }
 button { font: inherit; padding: 8px 12px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); flex: 1; font-weight: 600; }

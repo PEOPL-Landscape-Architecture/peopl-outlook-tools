@@ -17,11 +17,15 @@ as a fallback that works anywhere).
 It stays installed across restarts. (Developer-mode extensions show a "Disable
 developer mode extensions" nudge on browser start — just dismiss it.)
 
+Clicking the toolbar icon opens a **docked side panel** beside Outlook that **stays open**
+while you work (no more popup closing when you click into the email). **Drag its inner edge**
+to make it wider/taller — the browser remembers the size.
+
 ## Use it
 
 1. Open **Outlook on the web** and start a **new email / reply**.
 2. **Click into the message body** (so the cursor is there).
-3. Click the **PEOPL Email Templates** toolbar icon.
+3. Click the **PEOPL Email Templates** toolbar icon to open the docked **side panel** (it stays open).
 4. Pick a template, set the dropdowns, fill in the fields — preview updates live.
 5. **Insert into email** fills the **body** at your cursor, plus the **Subject** and any
    **To / Cc / Bcc** the template carries. The status line reports what landed.
@@ -32,8 +36,8 @@ developer mode extensions" nudge on browser start — just dismiss it.)
 
 ## Creating & editing templates (no code)
 
-Click the extension icon, then **✎ Edit** (top-right of the popup) — or right-click
-the toolbar icon → **Options**. That opens the built-in editor:
+Click the extension icon, then **✎ Edit** (top-right of the panel) — or right-click
+the toolbar icon → **Options**. That opens the built-in editor in a full tab:
 
 - **+ New template** — start a fresh one (comes pre-wired with `{{client}}` and `{{signoff}}`).
 - **Template name / Subject / Email body** — type your email. Put a `{{field}}` wherever
