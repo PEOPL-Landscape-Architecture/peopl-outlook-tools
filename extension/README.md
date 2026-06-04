@@ -29,15 +29,30 @@ developer mode extensions" nudge on browser start — just dismiss it.)
 > The subject is shown in the preview for reference; the extension inserts the
 > **body** at your cursor. Type/paste the subject yourself.
 
-## Editing templates
+## Creating & editing templates (no code)
 
-Edit **[`templates.js`](templates.js)** in this folder — same format as documented
-at the top of that file (dropdowns via `options`, fill-ins via `type: "text"` /
-`"textarea"`, any `{{token}}` becomes a field). After saving, go to
-`chrome://extensions` and click the **reload** (↻) icon on the extension.
+Click the extension icon, then **✎ Edit** (top-right of the popup) — or right-click
+the toolbar icon → **Options**. That opens the built-in editor:
 
-> Note: this is a separate copy from `../src/templates.js` (used by the hosted web
-> page). Edit whichever you actually use, or ask me to keep them in sync.
+- **+ New template** — start a fresh one (comes pre-wired with `{{client}}` and `{{signoff}}`).
+- **Template name / Subject / Email body** — type your email. Put a `{{field}}` wherever
+  a bit should be fill-in or a dropdown, e.g. `Hi {{client}},`.
+- **Make selected text a field** — highlight a word/phrase in the body and click this to
+  turn it into a `{{field}}` (the highlighted text becomes its default value).
+- **Fields** — each `{{field}}` gets a card. Pick its type:
+  - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
+  - **Dropdown** → add options (a short *menu label* + the *text inserted*), and a default choice.
+- Changes **auto-save** to your browser as you type.
+- **Export** downloads a JSON backup; **Import** restores it (or moves templates to another PC).
+- **Reset to samples** restores the original examples.
+
+> Templates are stored per browser profile. To back them up to GitHub, **Export** the
+> JSON and commit it (or paste it into `templates.js`), then `/backup`.
+
+### Advanced: edit the file directly
+The starter templates live in [`templates.js`](templates.js) (same shape). Editing the
+file is optional now that the editor exists; if you do, click the **reload** (↻) icon on
+the extension at `chrome://extensions`.
 
 ## How it works / privacy
 
@@ -46,3 +61,4 @@ at the top of that file (dropdowns via `options`, fill-ins via `type: "text"` /
   `scripting`) that drops the HTML at your cursor in the compose box. It only acts
   on the tab you're looking at, only when you click the button, and sends nothing
   anywhere — all processing is local.
+- Templates are saved locally in your browser (`chrome.storage`); nothing is uploaded.

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PEOPL Email Templates — Editor</title>
+  <link rel="stylesheet" href="editor.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">&#9993;</span> <strong>PEOPL Email Templates</strong> <span class="sub">Editor</span></div>
+    <div class="top-actions">
+      <button id="btn-new" class="btn primary" type="button">+ New template</button>
+      <button id="btn-import" class="btn" type="button">Import&hellip;</button>
+      <button id="btn-export" class="btn" type="button">Export</button>
+      <button id="btn-reset" class="btn warn" type="button">Reset to samples</button>
+      <span id="saved" class="saved" aria-live="polite"></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="list-pane">
+      <ul id="tpl-list" class="tpl-list"></ul>
+    </aside>
+    <section id="edit-pane" class="edit-pane"></section>
+  </main>
+
+  <input type="file" id="import-file" accept="application/json,.json" hidden />
+
+  <script src="templates.js"></script>
+  <script src="store.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

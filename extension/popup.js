@@ -1,11 +1,12 @@
-/* PEOPL Email Templates — Chrome / Edge extension popup.
- * Reads templates from templates.js (window.PEOPL_TEMPLATES), renders a control
- * for every {{token}}, shows a live preview, and inserts the result into the
- * Outlook compose box in the active tab. Copy is always available as a fallback. */
+/* PEOPL Email Templates — popup (the "use a template" view).
+ * Loads templates from storage (PEOPL_STORE), renders a control for every
+ * {{token}}, shows a live preview, and inserts into the Outlook compose box in
+ * the active tab. Copy is always available as a fallback. */
 (function () {
   "use strict";
 
   var els = {};
+  var TEMPLATES = [];   // working set (from storage, falls back to bundled defaults)
   var current = null;   // selected template
   var values = {};      // slot id -> current string value
   var tokenOrder = [];  // slot ids in first-appearance order
@@ -13,39 +14,47 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     cacheEls();
-    buildTemplateList();
     wireEvents();
-    if (current) renderTemplate(current);
+    PEOPL_STORE.load(function (list) {
+      TEMPLATES = list || [];
+      buildTemplateList();
+      if (current) renderTemplate(current);
+    });
   });
 
   // ---- setup --------------------------------------------------------------
   function cacheEls() {
-    ["app", "tpl", "slots", "pv-subject", "pv-body", "btn-insert", "btn-copy", "status"]
+    ["app", "tpl", "slots", "pv-subject", "pv-body", "btn-insert", "btn-copy", "btn-edit", "status"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
   }
 
   function buildTemplateList() {
-    var list = window.PEOPL_TEMPLATES || [];
     els.tpl.innerHTML = "";
-    list.forEach(function (t, i) {
+    TEMPLATES.forEach(function (t, i) {
       var o = document.createElement("option");
       o.value = String(i);
       o.textContent = t.name || t.id || ("Template " + (i + 1));
       els.tpl.appendChild(o);
     });
-    current = list[0] || null;
+    current = TEMPLATES[0] || null;
     els.tpl.selectedIndex = 0;
-    if (!list.length) setStatus("No templates found in templates.js.", "err");
+    if (!TEMPLATES.length) setStatus("No templates yet — click ✎ Edit to add one.", "err");
   }
 
   function wireEvents() {
     els.tpl.addEventListener("change", function () {
-      var list = window.PEOPL_TEMPLATES || [];
-      current = list[Number(els.tpl.value)] || null;
+      current = TEMPLATES[Number(els.tpl.value)] || null;
       if (current) renderTemplate(current);
     });
     els.btnInsert.addEventListener("click", onInsert);
     els.btnCopy.addEventListener("click", onCopy);
+    els.btnEdit.addEventListener("click", function () {
+      if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.openOptionsPage) {
+        chrome.runtime.openOptionsPage();
+      } else {
+        setStatus("Open the editor from the extension's options.", "err");
+      }
+    });
   }
 
   // ---- token helpers ------------------------------------------------------
@@ -224,6 +233,7 @@
 
   // ---- copy ---------------------------------------------------------------
   function onCopy() {
+    if (!current) return;
     var text = resolve(current.body);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
