@@ -1,0 +1,19 @@
+# Editors
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / scratch
+*.log
+*.tmp
+*.swp
+
+# Per-machine Claude Code settings (project-wide settings.json IS tracked)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

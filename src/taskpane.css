@@ -1,0 +1,52 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1b1a19;
+  --muted: #605e5c;
+  --line: #e1dfdd;
+  --accent: #2e7d32;
+  --accent-fg: #ffffff;
+  --field-bg: #ffffff;
+  --danger: #d13438;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1f1f; --fg: #f3f2f1; --muted: #b3b0ad; --line: #3b3a39;
+    --accent: #4caf50; --accent-fg: #0a210c; --field-bg: #2b2b2b; --danger: #f1707b;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px; color: var(--fg); background: var(--bg); padding: 12px;
+}
+h1 { font-size: 15px; margin: 0 0 10px; font-weight: 600; }
+.field, .slots > .slot { margin-bottom: 10px; }
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+select, input[type="text"], textarea {
+  width: 100%; padding: 6px 8px; font: inherit; color: var(--fg);
+  background: var(--field-bg); border: 1px solid var(--line); border-radius: 4px;
+}
+select:focus, input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
+.preview { border: 1px solid var(--line); border-radius: 6px; margin: 12px 0; overflow: hidden; }
+.preview-head {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); background: rgba(127,127,127,.08); padding: 5px 8px;
+}
+.preview-subject { font-weight: 600; padding: 8px 8px 0; }
+.preview-subject:empty { display: none; }
+.preview-body { white-space: pre-wrap; padding: 6px 8px 10px; font-size: 13px; line-height: 1.45; }
+.options { margin-bottom: 10px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg); margin-right: 14px; }
+.chk input { margin: 0; }
+.actions { display: flex; gap: 8px; }
+button { font: inherit; padding: 8px 12px; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); flex: 1; font-weight: 600; }
+button.secondary { background: transparent; color: var(--fg); border-color: var(--line); }
+button:hover { filter: brightness(1.05); }
+button:active { transform: translateY(1px); }
+.status { font-size: 12px; color: var(--muted); min-height: 16px; margin: 10px 0 0; }
+.status.ok { color: var(--accent); }
+.status.err { color: var(--danger); }
+.loading { padding: 20px; color: var(--muted); }

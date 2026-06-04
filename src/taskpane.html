@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PEOPL Email Templates</title>
+  <link rel="stylesheet" href="taskpane.css" />
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+</head>
+<body>
+  <main id="app" hidden>
+    <header class="hdr">
+      <h1>Email templates</h1>
+    </header>
+
+    <section class="field">
+      <label for="tpl">Template</label>
+      <select id="tpl"></select>
+    </section>
+
+    <section id="slots" class="slots"><!-- controls generated here --></section>
+
+    <section class="preview">
+      <div class="preview-head">Preview</div>
+      <div class="preview-subject" id="pv-subject"></div>
+      <div class="preview-body" id="pv-body"></div>
+    </section>
+
+    <section class="options">
+      <label class="chk"><input type="checkbox" id="opt-subject" checked /> Set subject</label>
+      <label class="chk"><input type="checkbox" id="opt-replace" /> Replace whole body</label>
+    </section>
+
+    <section class="actions">
+      <button id="btn-insert" class="primary" type="button">Insert into email</button>
+      <button id="btn-copy" class="secondary" type="button">Copy</button>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <div id="loading" class="loading">Loading…</div>
+
+  <script src="templates.js"></script>
+  <script src="taskpane.js"></script>
+</body>
+</html>
