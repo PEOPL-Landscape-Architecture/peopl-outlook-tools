@@ -1,42 +1,26 @@
-/* PEOPL Email Templates — task pane logic.
+/* PEOPL Email Templates — Chrome / Edge extension popup.
  * Reads templates from templates.js (window.PEOPL_TEMPLATES), renders a control
- * for every {{token}}, shows a live preview, and inserts into the open email. */
+ * for every {{token}}, shows a live preview, and inserts the result into the
+ * Outlook compose box in the active tab. Copy is always available as a fallback. */
 (function () {
   "use strict";
 
   var els = {};
-  var current = null;     // selected template object
-  var values = {};        // slot id -> current string value
-  var tokenOrder = [];    // slot ids in first-appearance order
-  var hostType = null;    // Office host, or null when previewed in a browser
-  var booted = false;
-
+  var current = null;   // selected template
+  var values = {};      // slot id -> current string value
+  var tokenOrder = [];  // slot ids in first-appearance order
   var TOKEN = /\{\{\s*([\w.\-]+)\s*\}\}/g;
 
-  // ---- boot ---------------------------------------------------------------
-  function boot(host) {
-    if (booted) return;
-    booted = true;
-    hostType = host || null;
+  document.addEventListener("DOMContentLoaded", function () {
     cacheEls();
     buildTemplateList();
     wireEvents();
-    els.loading.hidden = true;
-    els.app.hidden = false;
     if (current) renderTemplate(current);
-    if (!hostType) setStatus("Preview mode — open inside Outlook to insert.", "");
-  }
-
-  if (typeof Office !== "undefined" && Office.onReady) {
-    Office.onReady(function (info) { boot(info && info.host); });
-  }
-  // Fallback so the UI also works in a plain browser (for editing/previewing).
-  setTimeout(function () { boot(null); }, 1500);
+  });
 
   // ---- setup --------------------------------------------------------------
   function cacheEls() {
-    ["app", "loading", "tpl", "slots", "pv-subject", "pv-body",
-     "opt-subject", "opt-replace", "btn-insert", "btn-copy", "status"]
+    ["app", "tpl", "slots", "pv-subject", "pv-body", "btn-insert", "btn-copy", "status"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
   }
 
@@ -144,7 +128,7 @@
     });
 
     updatePreview();
-    if (hostType) setStatus("");
+    setStatus("");
   }
 
   // ---- resolve + preview --------------------------------------------------
@@ -159,51 +143,102 @@
     els.pvBody.textContent = resolve(current.body);
   }
 
-  // ---- actions ------------------------------------------------------------
-  function inOutlook() {
-    return typeof Office !== "undefined" && Office.context &&
-           Office.context.mailbox && Office.context.mailbox.item;
-  }
-
+  // ---- insert into the Outlook compose box (active tab) --------------------
   function onInsert() {
     if (!current) return;
-    if (!inOutlook()) { setStatus("Open a new email or reply in Outlook, then insert.", "err"); return; }
-    var item = Office.context.mailbox.item;
+    var html = textToHtml(resolve(current.body));
+    if (typeof chrome === "undefined" || !chrome.scripting || !chrome.tabs) {
+      setStatus("Insert works inside the browser extension — use Copy here.", "err");
+      return;
+    }
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      var tab = tabs && tabs[0];
+      if (!tab || tab.id == null) { setStatus("No active tab found.", "err"); return; }
+      chrome.scripting.executeScript(
+        { target: { tabId: tab.id }, func: pageInsert, args: [html] },
+        function (results) {
+          if (chrome.runtime.lastError) {
+            setStatus("Can't insert on this page — use Copy, then paste.", "err");
+            return;
+          }
+          var r = results && results[0] && results[0].result;
+          if (r && r.ok) setStatus("Inserted into your email ✓", "ok");
+          else setStatus("Couldn't find the message box. Click into the email body, then Insert — or use Copy.", "err");
+        }
+      );
+    });
+  }
 
-    var afterSubject = function () {
-      var opts = { coercionType: Office.CoercionType.Html };
-      var cb = function (res) {
-        if (res.status === Office.AsyncResultStatus.Succeeded) setStatus("Inserted ✓", "ok");
-        else setStatus("Couldn't insert: " + (res.error && res.error.message), "err");
-      };
-      var html = textToHtml(resolve(current.body));
-      if (els.optReplace.checked) item.body.setAsync(html, opts, cb);
-      else item.body.setSelectedDataAsync(html, opts, cb);
-    };
+  /* Runs INSIDE the Outlook page (serialized by executeScript). Self-contained:
+     uses only its argument and page globals. Inserts html at the caret of the
+     focused/largest editable region. */
+  function pageInsert(html) {
+    function isEditable(el) {
+      return !!(el && (el.isContentEditable ||
+        (el.getAttribute && (el.getAttribute("contenteditable") === "true" ||
+                             el.getAttribute("contenteditable") === ""))));
+    }
+    var sel = window.getSelection();
+    var editable = document.activeElement;
 
-    if (els.optSubject.checked && item.subject && item.subject.setAsync) {
-      item.subject.setAsync(resolve(current.subject), function () { afterSubject(); });
-    } else {
-      afterSubject();
+    if (!isEditable(editable) && sel && sel.rangeCount) {
+      var node = sel.anchorNode;
+      while (node && node.nodeType === 3) node = node.parentNode;
+      while (node && !isEditable(node)) node = node.parentElement;
+      if (node) editable = node;
+    }
+    if (!isEditable(editable)) {
+      var cands = Array.prototype.slice.call(
+        document.querySelectorAll('[contenteditable="true"],[contenteditable=""],[role="textbox"]'));
+      cands = cands.filter(function (e) { return e.offsetParent !== null; });
+      cands.sort(function (a, b) {
+        return (b.offsetWidth * b.offsetHeight) - (a.offsetWidth * a.offsetHeight);
+      });
+      editable = cands[0];
+    }
+    if (!isEditable(editable)) return { ok: false, reason: "no-editable" };
+
+    editable.focus();
+    try {
+      var s = window.getSelection(), range;
+      if (s && s.rangeCount && editable.contains(s.anchorNode)) {
+        range = s.getRangeAt(0);
+      } else {
+        range = document.createRange();
+        range.selectNodeContents(editable);
+        range.collapse(false);
+        s.removeAllRanges();
+        s.addRange(range);
+      }
+      var ok = false;
+      try { ok = document.execCommand("insertHTML", false, html); } catch (e) { ok = false; }
+      if (!ok) {
+        range.deleteContents();
+        range.insertNode(range.createContextualFragment(html));
+      }
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, reason: String(e) };
     }
   }
 
+  // ---- copy ---------------------------------------------------------------
   function onCopy() {
     var text = resolve(current.body);
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
-        function () { setStatus("Copied to clipboard ✓", "ok"); },
-        function () { setStatus("Copy failed — select the preview and copy manually.", "err"); }
+        function () { setStatus("Copied to clipboard ✓ — paste into your email.", "ok"); },
+        function () { setStatus("Copy failed — select the preview text and copy manually.", "err"); }
       );
     } else {
-      setStatus("Clipboard not available in this view.", "err");
+      setStatus("Clipboard not available.", "err");
     }
   }
 
-  // ---- small utilities ----------------------------------------------------
+  // ---- utilities ----------------------------------------------------------
   function textToHtml(text) {
     var esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return "<div>" + esc.replace(/\r\n|\r|\n/g, "<br>") + "</div>";
+    return esc.replace(/\r\n|\r|\n/g, "<br>");
   }
   function prettify(id) {
     return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
