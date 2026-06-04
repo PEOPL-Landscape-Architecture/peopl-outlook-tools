@@ -23,6 +23,9 @@ body {
 h1 { font-size: 15px; margin: 0 0 10px; font-weight: 600; }
 .field, .slots > .slot { margin-bottom: 10px; }
 label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.slot-head { display: flex; align-items: center; gap: 6px; cursor: default; }
+.slot-head input[type="checkbox"] { margin: 0; cursor: pointer; }
+.slot input:disabled, .slot select:disabled, .slot textarea:disabled { opacity: .45; }
 select, input[type="text"], textarea {
   width: 100%; padding: 6px 8px; font: inherit; color: var(--fg);
   background: var(--field-bg); border: 1px solid var(--line); border-radius: 4px;

@@ -42,6 +42,9 @@ the toolbar icon → **Options**. That opens the built-in editor:
 - **Fields** — each `{{field}}` gets a card. Pick its type:
   - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
   - **Dropdown** → add options (a short *menu label* + the *text inserted*), and a default choice.
+  - **Optional** → tick this to give the field an **include / skip checkbox** in the popup — ideal
+    for paragraphs you sometimes leave out. Skipping one also tidies up the leftover blank line.
+    Use *"Leave it OFF by default"* for paragraphs you only add occasionally.
 - Changes **auto-save** to your browser as you type.
 - **Export** downloads a JSON backup; **Import** restores it (or moves templates to another PC).
 - **Reset to samples** restores the original examples.

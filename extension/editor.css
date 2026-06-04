@@ -66,6 +66,9 @@ textarea#f-body { min-height: 200px; font-family: "Cascadia Mono", Consolas, mon
 .opt .rm { background: none; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; color: var(--danger); padding: 6px 9px; }
 .add-opt { align-self: flex-start; }
 .hint { font-size: 12px; color: var(--muted); }
+.check-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg); cursor: pointer; }
+.check-line input { margin: 0; }
+.check-line.sub { margin-top: 6px; margin-left: 22px; color: var(--muted); font-size: 12px; }
 
 .preview-wrap { margin-top: 22px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .preview-wrap .ph { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);

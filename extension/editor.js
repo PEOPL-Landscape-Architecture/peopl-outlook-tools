@@ -245,6 +245,32 @@
     li.addEventListener("input", function () { slot.label = li.value; updatePreview(); scheduleSave(); });
     lblRow.appendChild(ll); lblRow.appendChild(li); card.appendChild(lblRow);
 
+    // optional / omit controls (apply to every field type)
+    var optWrap = document.createElement("div");
+    optWrap.className = "row";
+    var optLine = document.createElement("label"); optLine.className = "check-line";
+    var optChk = document.createElement("input"); optChk.type = "checkbox"; optChk.checked = !!slot.optional;
+    var optTxt = document.createElement("span"); optTxt.textContent = "Optional — show an include / skip checkbox when composing";
+    optLine.appendChild(optChk); optLine.appendChild(optTxt); optWrap.appendChild(optLine);
+
+    var omitLine = document.createElement("label"); omitLine.className = "check-line sub";
+    var omitChk = document.createElement("input"); omitChk.type = "checkbox"; omitChk.checked = !!slot.omitByDefault;
+    var omitTxt = document.createElement("span"); omitTxt.textContent = "Leave it OFF by default (omitted unless ticked)";
+    omitLine.appendChild(omitChk); omitLine.appendChild(omitTxt);
+    omitLine.style.display = slot.optional ? "" : "none";
+    optWrap.appendChild(omitLine);
+
+    optChk.addEventListener("change", function () {
+      slot.optional = optChk.checked;
+      if (!slot.optional) delete slot.omitByDefault;
+      omitLine.style.display = slot.optional ? "" : "none";
+      updatePreview(); scheduleSave();
+    });
+    omitChk.addEventListener("change", function () {
+      slot.omitByDefault = omitChk.checked; updatePreview(); scheduleSave();
+    });
+    card.appendChild(optWrap);
+
     if (type === "select") {
       card.appendChild(optionsEditor(slot));
     } else {
@@ -370,14 +396,16 @@
   function resolvePreview(str, t) {
     return (str || "").replace(TOKEN, function (whole, id) {
       var slot = t.slots && t.slots[id];
-      return slot ? previewValue(slot) : whole;
+      if (!slot) return whole;
+      if (slot.optional && slot.omitByDefault) return "";
+      return previewValue(slot);
     });
   }
   function updatePreview() {
     var t = cur(); if (!t) return;
     var subj = byId("pv-subj"), body = byId("pv-body");
-    if (subj) subj.textContent = resolvePreview(t.subject, t);
-    if (body) body.textContent = resolvePreview(t.body, t);
+    if (subj) subj.textContent = cleanSubject(resolvePreview(t.subject, t));
+    if (body) body.textContent = cleanBody(resolvePreview(t.body, t));
   }
 
   // ---- save ---------------------------------------------------------------
@@ -396,6 +424,10 @@
 
   // ---- utils --------------------------------------------------------------
   function byId(id) { return document.getElementById(id); }
+  function cleanBody(text) {
+    return String(text).replace(/[ \t]+(\r?\n)/g, "$1").replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "");
+  }
+  function cleanSubject(text) { return String(text).replace(/\s{2,}/g, " ").trim(); }
   function prettify(id) { return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
   function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40); }
   function uid(name) { return (slug(name) || "tpl") + "-" + Date.now().toString(36); }

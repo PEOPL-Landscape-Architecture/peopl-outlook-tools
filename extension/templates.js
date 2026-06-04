@@ -133,6 +133,7 @@ Kind regards,
       },
       next: {
         label: "Next steps",
+        optional: true,
         options: [
           { label: "Your review", text: "Next step is your feedback — happy to set up a call or meet on site to talk it through." },
           { label: "We proceed", text: "Next step is for us to progress the following stage; nothing needed from you right now." },

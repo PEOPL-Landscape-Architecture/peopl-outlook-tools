@@ -1,12 +1,14 @@
-/* PEOPL Email Templates — task pane logic.
+/* PEOPL Email Templates — task pane logic (Outlook add-in / web page).
  * Reads templates from templates.js (window.PEOPL_TEMPLATES), renders a control
- * for every {{token}}, shows a live preview, and inserts into the open email. */
+ * for every {{token}}, shows a live preview, and inserts into the open email.
+ * Optional fields get an include/skip checkbox. */
 (function () {
   "use strict";
 
   var els = {};
   var current = null;     // selected template object
   var values = {};        // slot id -> current string value
+  var included = {};      // slot id -> whether to insert it (optional fields can be off)
   var tokenOrder = [];    // slot ids in first-appearance order
   var hostType = null;    // Office host, or null when previewed in a browser
   var booted = false;
@@ -30,7 +32,6 @@
   if (typeof Office !== "undefined" && Office.onReady) {
     Office.onReady(function (info) { boot(info && info.host); });
   }
-  // Fallback so the UI also works in a plain browser (for editing/previewing).
   setTimeout(function () { boot(null); }, 1500);
 
   // ---- setup --------------------------------------------------------------
@@ -79,7 +80,8 @@
   function normOptions(slot) {
     return (slot.options || []).map(function (o) {
       if (o && typeof o === "object") {
-        return { label: o.label != null ? o.label : o.text, text: o.text != null ? o.text : "" };
+        var lab = (o.label != null && o.label !== "") ? o.label : o.text;
+        return { label: lab, text: o.text != null ? o.text : "" };
       }
       return { label: String(o), text: String(o) };
     });
@@ -95,6 +97,7 @@
   // ---- render -------------------------------------------------------------
   function renderTemplate(t) {
     values = {};
+    included = {};
     tokenOrder = [];
     var seen = {};
     tokensIn(t.subject).concat(tokensIn(t.body)).forEach(function (id) {
@@ -105,13 +108,29 @@
     tokenOrder.forEach(function (id) {
       var slot = (t.slots && t.slots[id]) || { label: prettify(id), type: "text" };
       var kind = slotKind(slot);
+      var optional = !!slot.optional;
+      included[id] = optional ? !slot.omitByDefault : true;
 
       var wrap = document.createElement("div");
       wrap.className = "slot";
-      var lab = document.createElement("label");
-      lab.textContent = slot.label || prettify(id);
-      lab.setAttribute("for", "f-" + id);
-      wrap.appendChild(lab);
+
+      var head = document.createElement("label");
+      head.className = "slot-head";
+      var chk = null;
+      if (optional) {
+        chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.id = "chk-" + id;
+        chk.checked = included[id];
+        head.appendChild(chk);
+        head.setAttribute("for", "chk-" + id);
+      } else {
+        head.setAttribute("for", "f-" + id);
+      }
+      var span = document.createElement("span");
+      span.textContent = slot.label || prettify(id);
+      head.appendChild(span);
+      wrap.appendChild(head);
 
       var ctrl;
       if (kind === "select") {
@@ -139,7 +158,17 @@
         ctrl.addEventListener("input", function () { values[id] = ctrl.value; updatePreview(); });
       }
       ctrl.id = "f-" + id;
+      if (optional && !included[id]) ctrl.disabled = true;
       wrap.appendChild(ctrl);
+
+      if (optional && chk) {
+        chk.addEventListener("change", function () {
+          included[id] = chk.checked;
+          ctrl.disabled = !chk.checked;
+          updatePreview();
+        });
+      }
+
       els.slots.appendChild(wrap);
     });
 
@@ -147,19 +176,30 @@
     if (hostType) setStatus("");
   }
 
-  // ---- resolve + preview --------------------------------------------------
+  // ---- resolve + cleanup + preview ---------------------------------------
   function resolve(str) {
     return (str || "").replace(TOKEN, function (whole, id) {
+      if (included[id] === false) return "";
       return (values[id] != null) ? values[id] : whole;
     });
   }
+  function cleanBody(text) {
+    return String(text)
+      .replace(/[ \t]+(\r?\n)/g, "$1")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/^\s+|\s+$/g, "");
+  }
+  function cleanSubject(text) { return String(text).replace(/\s{2,}/g, " ").trim(); }
+  function resolvedBody() { return cleanBody(resolve(current.body)); }
+  function resolvedSubject() { return cleanSubject(resolve(current.subject)); }
+
   function updatePreview() {
     if (!current) return;
-    els.pvSubject.textContent = resolve(current.subject);
-    els.pvBody.textContent = resolve(current.body);
+    els.pvSubject.textContent = resolvedSubject();
+    els.pvBody.textContent = resolvedBody();
   }
 
-  // ---- actions ------------------------------------------------------------
+  // ---- insert / copy ------------------------------------------------------
   function inOutlook() {
     return typeof Office !== "undefined" && Office.context &&
            Office.context.mailbox && Office.context.mailbox.item;
@@ -176,20 +216,21 @@
         if (res.status === Office.AsyncResultStatus.Succeeded) setStatus("Inserted ✓", "ok");
         else setStatus("Couldn't insert: " + (res.error && res.error.message), "err");
       };
-      var html = textToHtml(resolve(current.body));
+      var html = textToHtml(resolvedBody());
       if (els.optReplace.checked) item.body.setAsync(html, opts, cb);
       else item.body.setSelectedDataAsync(html, opts, cb);
     };
 
     if (els.optSubject.checked && item.subject && item.subject.setAsync) {
-      item.subject.setAsync(resolve(current.subject), function () { afterSubject(); });
+      item.subject.setAsync(resolvedSubject(), function () { afterSubject(); });
     } else {
       afterSubject();
     }
   }
 
   function onCopy() {
-    var text = resolve(current.body);
+    if (!current) return;
+    var text = resolvedBody();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(
         function () { setStatus("Copied to clipboard ✓", "ok"); },
