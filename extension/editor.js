@@ -152,15 +152,7 @@
     bodyRow.appendChild(ta);
     var tb = document.createElement("div");
     tb.className = "body-toolbar";
-    [["B", "bold", "Bold"], ["i", "italic", "Italic"], ["• List", "ul", "Bulleted list"],
-     ["1. List", "ol", "Numbered list"], ["Link", "link", "Link"]].forEach(function (spec) {
-      var b = document.createElement("button");
-      b.className = "btn tiny"; b.type = "button"; b.textContent = spec[0]; b.title = spec[2];
-      if (spec[1] === "bold") b.style.fontWeight = "700";
-      if (spec[1] === "italic") b.style.fontStyle = "italic";
-      b.addEventListener("click", function () { applyFormat(spec[1]); });
-      tb.appendChild(b);
-    });
+    tb.appendChild(makeFormatBar(ta));
     var mk = document.createElement("button");
     mk.className = "btn tiny"; mk.type = "button"; mk.textContent = "Make field";
     mk.title = "Turn the selected text into a {{field}}";
@@ -306,6 +298,7 @@
       if (type !== "textarea") di.type = "text";
       di.value = slot.default != null ? slot.default : "";
       di.addEventListener("input", function () { slot.default = di.value; updatePreview(); scheduleSave(); });
+      if (type === "textarea") dw.appendChild(makeFormatBar(di));
       dw.appendChild(di); grid.appendChild(dw);
       card.appendChild(grid);
     }
@@ -372,7 +365,10 @@
     var rm = document.createElement("button");
     rm.className = "rm"; rm.type = "button"; rm.title = "Remove option"; rm.textContent = "×";
     rm.addEventListener("click", function () { slot.options.splice(idx, 1); rebuildFields(); updatePreview(); scheduleSave(); });
-    row.appendChild(labI); row.appendChild(txtI); row.appendChild(rm);
+    var mid = document.createElement("div");
+    mid.appendChild(makeFormatBar(txtI));
+    mid.appendChild(txtI);
+    row.appendChild(labI); row.appendChild(mid); row.appendChild(rm);
     return row;
   }
 
@@ -395,8 +391,26 @@
     ta.setSelectionRange(pos, pos);
   }
 
-  function applyFormat(kind) {
-    var ta = byId("f-body"); if (!ta) return;
+  // A compact formatting toolbar bound to a specific textarea. Used on the body,
+  // on paragraph-field defaults, and on each dropdown option's text.
+  function makeFormatBar(ta) {
+    var bar = document.createElement("div");
+    bar.className = "fmt-bar";
+    [["B", "bold", "Bold"], ["i", "italic", "Italic"], ["•", "ul", "Bulleted list"],
+     ["1.", "ol", "Numbered list"], ["↗", "link", "Link"]].forEach(function (spec) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "fmt-btn"; b.textContent = spec[0]; b.title = spec[2];
+      if (spec[1] === "bold") b.style.fontWeight = "700";
+      if (spec[1] === "italic") b.style.fontStyle = "italic";
+      b.addEventListener("mousedown", function (ev) { ev.preventDefault(); }); // keep textarea selection
+      b.addEventListener("click", function () { applyFormatTo(ta, spec[1]); });
+      bar.appendChild(b);
+    });
+    return bar;
+  }
+
+  function applyFormatTo(ta, kind) {
+    if (!ta) return;
     var s = ta.selectionStart, e = ta.selectionEnd, val = ta.value;
     var before = val.slice(0, s), sel = val.slice(s, e), after = val.slice(e);
     var text, cs, ce;
@@ -417,8 +431,8 @@
       var head = "[" + label + "](https://";
       text = before + head + ")" + after; cs = before.length + head.length; ce = cs;
     }
-    ta.value = text; cur().body = text;
-    rebuildFields(); updatePreview(); scheduleSave();
+    ta.value = text;
+    ta.dispatchEvent(new Event("input", { bubbles: true })); // routes to the right model + preview + save
     ta.focus(); ta.setSelectionRange(cs, ce);
   }
 

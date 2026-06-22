@@ -26,6 +26,10 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; font-size:
 .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .btn.warn { color: var(--danger); border-color: var(--line); }
 .btn.tiny { padding: 3px 7px; font-size: 12px; }
+.fmt-bar { display: flex; gap: 4px; margin-bottom: 4px; }
+.fmt-btn { font: inherit; font-size: 12px; line-height: 1.2; padding: 2px 8px; min-width: 26px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 4px; cursor: pointer; }
+.fmt-btn:hover { filter: brightness(1.06); }
 
 .layout { display: grid; grid-template-columns: 240px 1fr; gap: 0; height: calc(100vh - 56px); }
 .list-pane { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
