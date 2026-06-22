@@ -152,13 +152,23 @@
     bodyRow.appendChild(ta);
     var tb = document.createElement("div");
     tb.className = "body-toolbar";
+    [["B", "bold", "Bold"], ["i", "italic", "Italic"], ["• List", "ul", "Bulleted list"],
+     ["1. List", "ol", "Numbered list"], ["Link", "link", "Link"]].forEach(function (spec) {
+      var b = document.createElement("button");
+      b.className = "btn tiny"; b.type = "button"; b.textContent = spec[0]; b.title = spec[2];
+      if (spec[1] === "bold") b.style.fontWeight = "700";
+      if (spec[1] === "italic") b.style.fontStyle = "italic";
+      b.addEventListener("click", function () { applyFormat(spec[1]); });
+      tb.appendChild(b);
+    });
     var mk = document.createElement("button");
-    mk.className = "btn tiny"; mk.type = "button"; mk.textContent = "Make selected text a field";
+    mk.className = "btn tiny"; mk.type = "button"; mk.textContent = "Make field";
+    mk.title = "Turn the selected text into a {{field}}";
     mk.addEventListener("click", wrapSelection);
     tb.appendChild(mk);
     var hint = document.createElement("span");
     hint.className = "hint";
-    hint.textContent = "Tip: select a word (e.g. a name) and click this, or just type {{anything}}.";
+    hint.textContent = "Format: **bold**, *italic*, - bullets, 1. numbered, [text](https://…). Field: {{name}}.";
     tb.appendChild(hint);
     bodyRow.appendChild(tb);
     pane.appendChild(bodyRow);
@@ -385,6 +395,33 @@
     ta.setSelectionRange(pos, pos);
   }
 
+  function applyFormat(kind) {
+    var ta = byId("f-body"); if (!ta) return;
+    var s = ta.selectionStart, e = ta.selectionEnd, val = ta.value;
+    var before = val.slice(0, s), sel = val.slice(s, e), after = val.slice(e);
+    var text, cs, ce;
+    if (kind === "bold" || kind === "italic") {
+      var mark = kind === "bold" ? "**" : "*";
+      var inner = sel || (kind === "bold" ? "bold text" : "italic text");
+      var ins = mark + inner + mark;
+      text = before + ins + after; cs = before.length + mark.length; ce = cs + inner.length;
+    } else if (kind === "ul" || kind === "ol") {
+      var src = sel || "First item\nSecond item";
+      var n = 1;
+      var block = src.split(/\n/).map(function (l) { return (kind === "ul" ? "- " : (n++) + ". ") + l; }).join("\n");
+      var pre = (before && !/\n$/.test(before)) ? before + "\n" : before;
+      var post = (after && !/^\n/.test(after)) ? "\n" + after : after;
+      text = pre + block + post; cs = pre.length; ce = pre.length + block.length;
+    } else { // link
+      var label = sel || "link text";
+      var head = "[" + label + "](https://";
+      text = before + head + ")" + after; cs = before.length + head.length; ce = cs;
+    }
+    ta.value = text; cur().body = text;
+    rebuildFields(); updatePreview(); scheduleSave();
+    ta.focus(); ta.setSelectionRange(cs, ce);
+  }
+
   // ---- preview ------------------------------------------------------------
   function previewValue(slot) {
     if (!slot) return "";
@@ -421,7 +458,7 @@
       return '<div class="pv-line"><span class="k">' + x[0] + ':</span> ' + esc(x[1]) + "</div>";
     }).join("");
     var body = byId("pv-body");
-    if (body) body.textContent = cleanBody(resolvePreview(t.body, t));
+    if (body) body.innerHTML = PEOPL_MD.toHtml(cleanBody(resolvePreview(t.body, t)));
   }
   function recipPreview(str, t) {
     return resolvePreview(str, t).split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).join("; ");

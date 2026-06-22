@@ -78,4 +78,9 @@ textarea#f-body { min-height: 200px; font-family: "Cascadia Mono", Consolas, mon
 .pv-meta:empty { display: none; }
 .pv-line { margin-bottom: 2px; word-break: break-word; }
 .pv-line .k { color: var(--muted); font-weight: 600; }
-.pv-body { white-space: pre-wrap; padding: 8px 10px 12px; line-height: 1.5; }
+.pv-body { white-space: normal; padding: 8px 10px 12px; line-height: 1.5; }
+.pv-body p { margin: 0 0 8px; }
+.pv-body ul, .pv-body ol { margin: 0 0 8px; padding-left: 24px; }
+.pv-body li { margin: 2px 0; }
+.pv-body strong { font-weight: 700; }
+.pv-body a { color: var(--accent); }

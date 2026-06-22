@@ -52,6 +52,10 @@ In the tool window, click **✎ Edit** (top-right) — or right-click the toolba
   (e.g. `{{clientEmail}}`). Separate several with `;`.
 - **Make selected text a field** — highlight a word/phrase in the body and click this to
   turn it into a `{{field}}` (the highlighted text becomes its default value).
+- **Formatting** — use the **B** / *i* / **• List** / **1. List** / **Link** toolbar buttons,
+  or type the marks directly: `**bold**`, `*italic*`, `- bullets`, `1. numbered`,
+  `[text](https://…)`. The preview shows it rendered, and it inserts into Outlook as real
+  bold / italics / lists / links. (Dropdown option text and `{{fields}}` can contain formatting too.)
 - **Fields** — each `{{field}}` gets a card. Pick its type:
   - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
   - **Dropdown** → add options (a short *menu label* + the *text inserted*), and a default choice.

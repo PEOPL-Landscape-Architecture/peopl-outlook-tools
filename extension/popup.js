@@ -198,14 +198,14 @@
     els.pvMeta.innerHTML = meta.map(function (m) {
       return '<div class="pv-line"><span class="k">' + m[0] + ':</span> ' + esc(m[1]) + "</div>";
     }).join("");
-    els.pvBody.textContent = resolvedBody();
+    els.pvBody.innerHTML = PEOPL_MD.toHtml(resolvedBody());
   }
 
   // ---- fill the Outlook compose window (active tab) -----------------------
   function onInsert() {
     if (!current) return;
     var payload = {
-      bodyHtml: textToHtml(resolvedBody()),
+      bodyHtml: PEOPL_MD.toHtml(resolvedBody()),
       subject: resolvedSubject(),
       to: recipients(current.to),
       cc: recipients(current.cc),
@@ -369,21 +369,37 @@
   // ---- copy ---------------------------------------------------------------
   function onCopy() {
     if (!current) return;
-    var text = resolvedBody();
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(
-        function () { setStatus("Copied body ✓ — paste into your email.", "ok"); },
-        function () { setStatus("Copy failed — select the preview text and copy manually.", "err"); }
-      );
-    } else {
-      setStatus("Clipboard not available.", "err");
+    var md = resolvedBody();
+    var html = PEOPL_MD.toHtml(md);
+    var plain = PEOPL_MD.strip(md);
+    // Prefer a rich copy so formatting survives the paste into Outlook.
+    if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+      try {
+        var item = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([plain], { type: "text/plain" })
+        });
+        navigator.clipboard.write([item]).then(
+          function () { setStatus("Copied with formatting ✓ — paste into your email.", "ok"); },
+          plainCopy
+        );
+        return;
+      } catch (e) { /* fall back */ }
+    }
+    plainCopy();
+    function plainCopy() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(plain).then(
+          function () { setStatus("Copied ✓ — paste into your email.", "ok"); },
+          function () { setStatus("Copy failed — select the preview text and copy manually.", "err"); }
+        );
+      } else {
+        setStatus("Clipboard not available.", "err");
+      }
     }
   }
 
   // ---- utilities ----------------------------------------------------------
-  function textToHtml(text) {
-    return esc(text).replace(/\r\n|\r|\n/g, "<br>");
-  }
   function esc(text) {
     return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
