@@ -20,9 +20,9 @@ body {
   /* Fluid: fills the side panel; the user can drag the panel wider/taller. */
   min-width: 280px;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 14px; color: var(--fg); background: var(--bg); padding: 12px;
+  font-size: 12px; color: var(--fg); background: var(--bg); padding: 12px;
 }
-h1 { font-size: 15px; margin: 0; font-weight: 600; }
+h1 { font-size: 13px; margin: 0; font-weight: 600; }
 .hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .linkbtn { background: none; border: none; color: var(--accent); font-size: 12px; padding: 2px 4px; cursor: pointer; }
 .linkbtn:hover { text-decoration: underline; }
@@ -64,7 +64,7 @@ textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
 .preview-meta:empty { display: none; }
 .pv-line { margin-bottom: 2px; word-break: break-word; }
 .pv-line .k { color: var(--muted); font-weight: 600; }
-.preview-body { white-space: normal; padding: 6px 8px 10px; font-size: 13px; line-height: 1.45; max-height: 50vh; overflow: auto; }
+.preview-body { white-space: normal; padding: 6px 8px 10px; font-size: 12px; line-height: 1.45; max-height: 50vh; overflow: auto; }
 .preview-body p { margin: 0 0 8px; }
 .preview-body ul, .preview-body ol { margin: 0 0 8px; padding-left: 22px; }
 .preview-body li { margin: 2px 0; }
