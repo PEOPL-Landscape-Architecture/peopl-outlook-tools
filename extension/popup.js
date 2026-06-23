@@ -186,9 +186,13 @@
           updatePreview();
         });
       } else {
-        ctrl = document.createElement(kind === "textarea" ? "textarea" : "input");
-        if (kind !== "textarea") ctrl.type = "text";
         var eff = hasOverride ? formValues[id] : (slot.default != null ? slot.default : "");
+        // A single-line <input> silently drops line breaks, which would flatten a
+        // numbered/bulleted list. If the value spans lines, use a textarea so the
+        // formatting survives into the preview/email.
+        var multiline = (kind === "textarea") || /\r|\n/.test(eff);
+        ctrl = document.createElement(multiline ? "textarea" : "input");
+        if (!multiline) ctrl.type = "text";
         ctrl.value = eff;
         if (slot.placeholder) ctrl.placeholder = slot.placeholder;
         values[id] = eff;
