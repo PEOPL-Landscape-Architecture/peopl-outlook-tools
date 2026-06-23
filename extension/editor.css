@@ -32,7 +32,9 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; font-size:
 .fmt-btn:hover { filter: brightness(1.06); }
 
 /* list | editing controls | preview */
-.layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 158px minmax(0, 1fr) 300px; }
+.layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 158px minmax(160px, 1fr) 6px var(--pw, 380px); }
+.splitter { cursor: col-resize; background: var(--line); }
+.splitter:hover, .splitter.dragging { background: var(--accent); }
 .list-pane { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
 .tpl-list { list-style: none; margin: 0; padding: 4px; }
 .tpl-list li { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 8px; border-radius: 5px; cursor: pointer; }
@@ -91,6 +93,7 @@ textarea#f-body { min-height: 140px; font-family: "Cascadia Mono", Consolas, mon
 /* Narrow windows: stack so nothing gets crushed. */
 @media (max-width: 640px) {
   .layout { grid-template-columns: 1fr; }
+  .splitter { display: none; }
   .list-pane { max-height: 108px; border-right: 0; border-bottom: 1px solid var(--line); }
   .preview-pane { border-left: 0; border-top: 1px solid var(--line); }
 }

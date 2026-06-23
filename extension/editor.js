@@ -14,8 +14,46 @@
       state.selected = state.templates.length ? 0 : -1;
       wireTopbar();
       renderAll();
+      setupSplitter();
     });
   });
+
+  // ---- resizable preview pane --------------------------------------------
+  function setupSplitter() {
+    var sp = byId("splitter");
+    var layout = document.querySelector(".layout");
+    if (!sp || !layout) return;
+    var LIST = 158, GUT = 6, MINCTRL = 160;
+    function clampPw(pw) {
+      var w = layout.getBoundingClientRect().width;
+      var maxPw = w - LIST - GUT - MINCTRL;
+      return Math.max(240, Math.min(pw, Math.max(280, maxPw)));
+    }
+    function setPw(pw) { layout.style.setProperty("--pw", clampPw(pw) + "px"); }
+    function curPw() { return parseInt(getComputedStyle(layout).getPropertyValue("--pw"), 10); }
+
+    var dragging = false;
+    function onMove(e) { if (dragging) setPw(layout.getBoundingClientRect().right - e.clientX); }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false; sp.classList.remove("dragging"); document.body.style.cursor = "";
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      var w = curPw();
+      if (w && typeof chrome !== "undefined" && chrome.storage) chrome.storage.local.set({ peoplEditorPreviewW: w });
+    }
+    sp.addEventListener("pointerdown", function (e) {
+      dragging = true; sp.classList.add("dragging"); document.body.style.cursor = "col-resize"; e.preventDefault();
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+    window.addEventListener("resize", function () { var c = curPw(); if (c) setPw(c); });
+
+    function applyInitial(w) { requestAnimationFrame(function () { setPw(w || 380); }); }
+    if (typeof chrome !== "undefined" && chrome.storage) {
+      chrome.storage.local.get("peoplEditorPreviewW", function (res) { applyInitial(res && res.peoplEditorPreviewW); });
+    } else { applyInitial(380); }
+  }
 
   // ---- top bar ------------------------------------------------------------
   function wireTopbar() {
