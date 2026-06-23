@@ -8,15 +8,56 @@
   var state = { templates: [], selected: 0 };
   var saveTimer = null;
 
+  var EHEIGHTS_KEY = "peoplEditorHeights";
+  var eHeights = {};                     // height key -> remembered textarea height (px)
+  var eHSaveTimer = null;
+  var eHObserver = (typeof ResizeObserver !== "undefined") ? new ResizeObserver(onEditorResize) : null;
+
   document.addEventListener("DOMContentLoaded", function () {
-    PEOPL_STORE.load(function (list) {
-      state.templates = PEOPL_STORE.clone(list || []);
-      state.selected = state.templates.length ? 0 : -1;
-      wireTopbar();
-      renderAll();
-      setupSplitter();
+    loadEditorHeights(function () {
+      PEOPL_STORE.load(function (list) {
+        state.templates = PEOPL_STORE.clone(list || []);
+        state.selected = state.templates.length ? 0 : -1;
+        wireTopbar();
+        renderAll();
+        setupSplitter();
+      });
     });
   });
+
+  // ---- remember resized textarea heights ---------------------------------
+  function loadEditorHeights(cb) {
+    if (typeof chrome === "undefined" || !chrome.storage) { eHeights = {}; cb(); return; }
+    chrome.storage.local.get(EHEIGHTS_KEY, function (res) { eHeights = (res && res[EHEIGHTS_KEY]) || {}; cb(); });
+  }
+  function rememberHeight(ta, key) {
+    ta.dataset.hk = key;
+    if (eHeights[key]) ta.style.height = eHeights[key] + "px";
+  }
+  function observeEditorTextareas() {
+    if (!eHObserver) return;
+    eHObserver.disconnect();
+    var pane = byId("edit-pane");
+    if (pane) pane.querySelectorAll("textarea[data-hk]").forEach(function (ta) { eHObserver.observe(ta); });
+  }
+  function onEditorResize(entries) {
+    var changed = false;
+    entries.forEach(function (e) {
+      var k = e.target.dataset && e.target.dataset.hk;
+      if (!k) return;
+      var h = Math.round(e.target.offsetHeight);
+      if (h > 0 && eHeights[k] !== h) { eHeights[k] = h; changed = true; }
+    });
+    if (changed) scheduleEHSave();
+  }
+  function scheduleEHSave() {
+    if (typeof chrome === "undefined" || !chrome.storage) return;
+    if (eHSaveTimer) clearTimeout(eHSaveTimer);
+    eHSaveTimer = setTimeout(function () {
+      var o = {}; o[EHEIGHTS_KEY] = eHeights;
+      try { chrome.storage.local.set(o); } catch (e) {}
+    }, 400);
+  }
 
   // ---- resizable preview pane --------------------------------------------
   function setupSplitter() {
@@ -189,6 +230,7 @@
     var ta = document.createElement("textarea");
     ta.id = "f-body"; ta.value = t.body || "";
     ta.addEventListener("input", function () { t.body = ta.value; rebuildFields(); updatePreview(); scheduleSave(); });
+    rememberHeight(ta, "b:" + t.id);
     bodyRow.appendChild(ta);
     var tb = document.createElement("div");
     tb.className = "body-toolbar";
@@ -258,9 +300,10 @@
     box.innerHTML = "";
     if (!toks.length) {
       box.innerHTML = '<p class="hint">No fields yet. Add a {{field}} in the subject or body and it appears here to configure.</p>';
-      return;
+    } else {
+      toks.forEach(function (tok) { box.appendChild(fieldCard(t, tok)); });
     }
-    toks.forEach(function (tok) { box.appendChild(fieldCard(t, tok)); });
+    observeEditorTextareas();
   }
 
   function fieldCard(t, tok) {
@@ -288,27 +331,29 @@
     head.appendChild(typeSel);
     card.appendChild(head);
 
-    // label (common)
-    var lblRow = document.createElement("div"); lblRow.className = "row";
-    var ll = document.createElement("label"); ll.textContent = "Label shown in the form";
+    // label + Optional, on one line
+    var topRow = document.createElement("div"); topRow.className = "fc-labelrow";
+    var labWrap = document.createElement("div"); labWrap.className = "grow";
+    var ll = document.createElement("label"); ll.className = "group-label"; ll.textContent = "Label shown in the form";
     var li = document.createElement("input"); li.type = "text"; li.value = slot.label || "";
     li.addEventListener("input", function () { slot.label = li.value; updatePreview(); scheduleSave(); });
-    lblRow.appendChild(ll); lblRow.appendChild(li); card.appendChild(lblRow);
+    labWrap.appendChild(ll); labWrap.appendChild(li);
+    topRow.appendChild(labWrap);
 
-    // optional / omit controls (apply to every field type)
-    var optWrap = document.createElement("div");
-    optWrap.className = "row";
-    var optLine = document.createElement("label"); optLine.className = "check-line";
+    var optLine = document.createElement("label"); optLine.className = "check-line fc-optional";
+    optLine.title = "Show an include / skip checkbox when composing";
     var optChk = document.createElement("input"); optChk.type = "checkbox"; optChk.checked = !!slot.optional;
-    var optTxt = document.createElement("span"); optTxt.textContent = "Optional — show an include / skip checkbox when composing";
-    optLine.appendChild(optChk); optLine.appendChild(optTxt); optWrap.appendChild(optLine);
+    var optTxt = document.createElement("span"); optTxt.textContent = "Optional";
+    optLine.appendChild(optChk); optLine.appendChild(optTxt);
+    topRow.appendChild(optLine);
+    card.appendChild(topRow);
 
     var omitLine = document.createElement("label"); omitLine.className = "check-line sub";
     var omitChk = document.createElement("input"); omitChk.type = "checkbox"; omitChk.checked = !!slot.omitByDefault;
     var omitTxt = document.createElement("span"); omitTxt.textContent = "Leave it OFF by default (omitted unless ticked)";
     omitLine.appendChild(omitChk); omitLine.appendChild(omitTxt);
     omitLine.style.display = slot.optional ? "" : "none";
-    optWrap.appendChild(omitLine);
+    card.appendChild(omitLine);
 
     optChk.addEventListener("change", function () {
       slot.optional = optChk.checked;
@@ -319,28 +364,25 @@
     omitChk.addEventListener("change", function () {
       slot.omitByDefault = omitChk.checked; updatePreview(); scheduleSave();
     });
-    card.appendChild(optWrap);
 
     if (type === "select") {
-      card.appendChild(optionsEditor(slot));
+      card.appendChild(optionsEditor(slot, t, tok));
     } else {
-      var grid = document.createElement("div"); grid.className = "fc-grid";
-      // placeholder
-      var pw = document.createElement("div");
-      pw.innerHTML = '<label class="group-label">Placeholder (optional)</label>';
+      // placeholder (full width)
+      var phRow = document.createElement("div"); phRow.className = "row";
+      phRow.innerHTML = '<label class="group-label">Placeholder (optional)</label>';
       var pi = document.createElement("input"); pi.type = "text"; pi.value = slot.placeholder || "";
       pi.addEventListener("input", function () { slot.placeholder = pi.value; scheduleSave(); });
-      pw.appendChild(pi); grid.appendChild(pw);
-      // default
-      var dw = document.createElement("div");
-      dw.innerHTML = '<label class="group-label">Default value (optional)</label>';
+      phRow.appendChild(pi); card.appendChild(phRow);
+      // default value (full width)
+      var dRow = document.createElement("div"); dRow.className = "row";
+      dRow.innerHTML = '<label class="group-label">Default value (optional)</label>';
       var di = document.createElement(type === "textarea" ? "textarea" : "input");
       if (type !== "textarea") di.type = "text";
       di.value = slot.default != null ? slot.default : "";
       di.addEventListener("input", function () { slot.default = di.value; updatePreview(); scheduleSave(); });
-      if (type === "textarea") dw.appendChild(makeFormatBar(di));
-      dw.appendChild(di); grid.appendChild(dw);
-      card.appendChild(grid);
+      if (type === "textarea") { dRow.appendChild(makeFormatBar(di)); rememberHeight(di, "d:" + t.id + ":" + tok); }
+      dRow.appendChild(di); card.appendChild(dRow);
     }
     return card;
   }
@@ -361,11 +403,11 @@
     return (slot.options || []).map(function (o) { return (o && o.label) || (o && o.text) || ""; });
   }
 
-  function optionsEditor(slot) {
+  function optionsEditor(slot, t, tok) {
     var wrap = document.createElement("div");
     wrap.innerHTML = '<label class="group-label">Dropdown options &mdash; menu label (optional) and the text inserted into the email</label>';
     var list = document.createElement("div"); list.className = "opts";
-    (slot.options || []).forEach(function (opt, idx) { list.appendChild(optionRow(slot, idx)); });
+    (slot.options || []).forEach(function (opt, idx) { list.appendChild(optionRow(slot, idx, t, tok)); });
     wrap.appendChild(list);
 
     var add = document.createElement("button");
@@ -393,7 +435,7 @@
     return wrap;
   }
 
-  function optionRow(slot, idx) {
+  function optionRow(slot, idx, t, tok) {
     var opt = slot.options[idx];
     var row = document.createElement("div"); row.className = "opt";
     var labI = document.createElement("input"); labI.type = "text"; labI.className = "opt-label";
@@ -402,6 +444,7 @@
     var txtI = document.createElement("textarea"); txtI.className = "opt-text"; txtI.rows = 2;
     txtI.placeholder = "Text inserted into the email"; txtI.value = opt.text || "";
     txtI.addEventListener("input", function () { opt.text = txtI.value; updatePreview(); scheduleSave(); });
+    rememberHeight(txtI, "o:" + t.id + ":" + tok + ":" + idx);
     var rm = document.createElement("button");
     rm.className = "rm"; rm.type = "button"; rm.title = "Remove option"; rm.textContent = "×";
     rm.addEventListener("click", function () { slot.options.splice(idx, 1); rebuildFields(); updatePreview(); scheduleSave(); });

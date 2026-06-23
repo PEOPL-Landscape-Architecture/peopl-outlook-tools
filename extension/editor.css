@@ -63,6 +63,9 @@ textarea#f-body { min-height: 140px; font-family: "Cascadia Mono", Consolas, mon
 .fc-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .fc-row code { background: var(--chip); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 12px; }
 .fc-row .fc-type { width: auto; margin-left: auto; }
+.fc-labelrow { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
+.fc-labelrow .grow { flex: 1; min-width: 0; }
+.fc-optional { flex: 0 0 auto; white-space: nowrap; padding-bottom: 5px; }
 .fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .fc-grid .full { grid-column: 1 / -1; }
 .opts { display: flex; flex-direction: column; gap: 5px; }
