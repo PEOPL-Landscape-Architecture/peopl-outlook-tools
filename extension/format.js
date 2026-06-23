@@ -35,7 +35,9 @@
       var ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
       if (ul) { flushPara(); if (!list || list.t !== "ul") { flushList(); list = { t: "ul", items: [] }; } list.items.push(ul[1]); }
       else if (ol) { flushPara(); if (!list || list.t !== "ol") { flushList(); list = { t: "ol", items: [] }; } list.items.push(ol[1]); }
-      else if (/^\s*$/.test(line)) { flushPara(); flushList(); }
+      // A blank line ends a paragraph, but NOT a list — a following item of the
+      // same kind keeps the same list, so numbering carries across blank lines.
+      else if (/^\s*$/.test(line)) { flushPara(); }
       else { flushList(); para.push(line); }
     });
     flushPara(); flushList();
