@@ -25,10 +25,17 @@
     var out = [], para = [], list = null;
     function flushPara() { if (para.length) { out.push("<p>" + para.map(inline).join("<br>") + "</p>"); para = []; } }
     function flushList() {
-      if (list) {
-        out.push("<" + list.t + ">" + list.items.map(function (it) { return "<li>" + inline(it) + "</li>"; }).join("") + "</" + list.t + ">");
-        list = null;
-      }
+      if (!list) return;
+      // Render list items as styled lines with the marker baked in as TEXT (not
+      // <ol>/<ul>). Outlook's compose editor strips inserted <ol> lists, which
+      // loses the numbering; literal markers + a hanging indent (inline CSS)
+      // survive insertion and render identically in the preview.
+      var n = 1;
+      list.items.forEach(function (it) {
+        var marker = (list.t === "ol") ? (n++) + "." : "•";
+        out.push('<div style="padding-left:1.8em;text-indent:-1.8em;margin:2px 0">' + marker + "&nbsp;&nbsp;" + inline(it) + "</div>");
+      });
+      list = null;
     }
     lines.forEach(function (line) {
       var ul = line.match(/^\s*[-*]\s+(.*)$/);
