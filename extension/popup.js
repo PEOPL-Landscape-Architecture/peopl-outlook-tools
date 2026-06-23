@@ -1,16 +1,26 @@
-/* PEOPL Email Templates — popup (the "use a template" view).
- * Loads templates from storage (PEOPL_STORE), renders a control for every
- * {{token}} (in recipients, subject and body), shows a live preview, and fills
- * the Outlook compose window: body at the cursor, plus Subject / To / Cc / Bcc.
- * Optional fields get an include/skip checkbox. Copy is a fallback. */
+/* PEOPL Email Templates — popup (the single app window: compose form + Saved
+ * Forms, with the editor as a slide-out panel).
+ *
+ * - Loads templates from storage (PEOPL_STORE); editor lives in an iframe panel.
+ * - The form REMEMBERS what you typed: edits persist across template changes /
+ *   re-renders (kept in formValues / formIncluded, keyed by field id).
+ * - Saved Forms = a template + your entered values, saved under a name. */
 (function () {
   "use strict";
 
+  var FORMS_KEY = "peoplForms";
   var els = {};
   var TEMPLATES = [];
+  var FORMS = [];
   var current = null;
+
+  // effective values used for preview/insert (recomputed each render)
   var values = {};
   var included = {};
+  // user overrides that PERSIST across re-renders and template switches
+  var formValues = {};
+  var formIncluded = {};
+
   var tokenOrder = [];
   var TOKEN = /\{\{\s*([\w.\-]+)\s*\}\}/g;
 
@@ -22,15 +32,25 @@
       buildTemplateList();
       if (current) renderTemplate(current);
     });
+    refreshForms();
+    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(function (changes, area) {
+        if (area !== "local") return;
+        if (changes[PEOPL_STORE.KEY]) reloadTemplates();   // live sync from the editor panel
+        if (changes[FORMS_KEY]) refreshForms();
+      });
+    }
   });
 
   // ---- setup --------------------------------------------------------------
   function cacheEls() {
-    ["app", "tpl", "slots", "pv-meta", "pv-body", "btn-insert", "btn-copy", "btn-edit", "status"]
+    ["app", "tpl", "forms", "form-save", "form-del", "slots", "pv-meta", "pv-body",
+     "btn-insert", "btn-copy", "btn-reset", "btn-edit", "editor-panel", "editor-frame",
+     "editor-close", "status"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
   }
 
-  function buildTemplateList() {
+  function buildTemplateList(preserveId) {
     els.tpl.innerHTML = "";
     TEMPLATES.forEach(function (t, i) {
       var o = document.createElement("option");
@@ -38,26 +58,45 @@
       o.textContent = t.name || t.id || ("Template " + (i + 1));
       els.tpl.appendChild(o);
     });
-    current = TEMPLATES[0] || null;
-    els.tpl.selectedIndex = 0;
-    if (!TEMPLATES.length) setStatus("No templates yet — click ✎ Edit to add one.", "err");
+    var idx = 0;
+    if (preserveId) { for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].id === preserveId) { idx = i; break; } }
+    current = TEMPLATES[idx] || null;
+    els.tpl.selectedIndex = TEMPLATES.length ? idx : -1;
+    if (!TEMPLATES.length) setStatus("No templates yet — click ✎ Edit templates to add one.", "err");
+  }
+
+  function reloadTemplates() {
+    var keep = current && current.id;
+    PEOPL_STORE.load(function (list) {
+      TEMPLATES = list || [];
+      buildTemplateList(keep);
+      if (current) renderTemplate(current);   // re-render keeps formValues
+    });
   }
 
   function wireEvents() {
     els.tpl.addEventListener("change", function () {
       current = TEMPLATES[Number(els.tpl.value)] || null;
-      if (current) renderTemplate(current);
+      els.forms.value = "";
+      if (current) renderTemplate(current);   // retains formValues across the switch
     });
     els.btnInsert.addEventListener("click", onInsert);
     els.btnCopy.addEventListener("click", onCopy);
-    els.btnEdit.addEventListener("click", function () {
-      if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.openOptionsPage) {
-        chrome.runtime.openOptionsPage();
-      } else {
-        setStatus("Open the editor from the extension's options.", "err");
-      }
-    });
+    els.btnReset.addEventListener("click", onReset);
+    els.btnEdit.addEventListener("click", openEditor);
+    els.editorClose.addEventListener("click", closeEditor);
+    els.forms.addEventListener("change", onPickForm);
+    els.formSave.addEventListener("click", onSaveForm);
+    els.formDel.addEventListener("click", onDeleteForm);
   }
+
+  // ---- editor slide-out panel --------------------------------------------
+  function openEditor() {
+    var f = els.editorFrame;
+    if (!f.getAttribute("src")) f.setAttribute("src", "editor.html");
+    els.editorPanel.classList.add("open");
+  }
+  function closeEditor() { els.editorPanel.classList.remove("open"); }
 
   // ---- token helpers ------------------------------------------------------
   function tokensIn(str) {
@@ -82,10 +121,12 @@
   }
   function defaultIndex(slot, opts) {
     if (slot.default == null) return 0;
-    for (var i = 0; i < opts.length; i++) {
-      if (opts[i].label === slot.default || opts[i].text === slot.default) return i;
-    }
+    for (var i = 0; i < opts.length; i++) if (opts[i].label === slot.default || opts[i].text === slot.default) return i;
     return 0;
+  }
+  function indexByText(opts, text) {
+    for (var i = 0; i < opts.length; i++) if (opts[i].text === text) return i;
+    return -1;
   }
 
   // ---- render -------------------------------------------------------------
@@ -103,7 +144,9 @@
       var slot = (t.slots && t.slots[id]) || { label: prettify(id), type: "text" };
       var kind = slotKind(slot);
       var optional = !!slot.optional;
-      included[id] = optional ? !slot.omitByDefault : true;
+      var hasOverride = Object.prototype.hasOwnProperty.call(formValues, id);
+      included[id] = Object.prototype.hasOwnProperty.call(formIncluded, id)
+        ? formIncluded[id] : (optional ? !slot.omitByDefault : true);
 
       var wrap = document.createElement("div");
       wrap.className = "slot";
@@ -113,9 +156,7 @@
       var chk = null;
       if (optional) {
         chk = document.createElement("input");
-        chk.type = "checkbox";
-        chk.id = "chk-" + id;
-        chk.checked = included[id];
+        chk.type = "checkbox"; chk.id = "chk-" + id; chk.checked = included[id];
         head.appendChild(chk);
         head.setAttribute("for", "chk-" + id);
       } else {
@@ -132,24 +173,29 @@
         var opts = normOptions(slot);
         opts.forEach(function (op, i) {
           var o = document.createElement("option");
-          o.value = String(i);
-          o.textContent = op.label;
+          o.value = String(i); o.textContent = op.label;
           ctrl.appendChild(o);
         });
-        var di = defaultIndex(slot, opts);
-        ctrl.value = String(di);
-        values[id] = opts.length ? opts[di].text : "";
+        var idx = defaultIndex(slot, opts);
+        if (hasOverride) { var k = indexByText(opts, formValues[id]); if (k >= 0) idx = k; }
+        ctrl.value = String(idx);
+        values[id] = opts.length ? opts[idx].text : "";
         ctrl.addEventListener("change", function () {
-          values[id] = opts[Number(ctrl.value)].text;
+          var v = opts[Number(ctrl.value)].text;
+          values[id] = v; formValues[id] = v;
           updatePreview();
         });
       } else {
         ctrl = document.createElement(kind === "textarea" ? "textarea" : "input");
         if (kind !== "textarea") ctrl.type = "text";
-        ctrl.value = slot.default != null ? slot.default : "";
+        var eff = hasOverride ? formValues[id] : (slot.default != null ? slot.default : "");
+        ctrl.value = eff;
         if (slot.placeholder) ctrl.placeholder = slot.placeholder;
-        values[id] = ctrl.value;
-        ctrl.addEventListener("input", function () { values[id] = ctrl.value; updatePreview(); });
+        values[id] = eff;
+        ctrl.addEventListener("input", function () {
+          values[id] = ctrl.value; formValues[id] = ctrl.value;
+          updatePreview();
+        });
       }
       ctrl.id = "f-" + id;
       if (optional && !included[id]) ctrl.disabled = true;
@@ -157,7 +203,7 @@
 
       if (optional && chk) {
         chk.addEventListener("change", function () {
-          included[id] = chk.checked;
+          included[id] = chk.checked; formIncluded[id] = chk.checked;
           ctrl.disabled = !chk.checked;
           updatePreview();
         });
@@ -167,7 +213,6 @@
     });
 
     updatePreview();
-    setStatus("");
   }
 
   // ---- resolve + cleanup + preview ---------------------------------------
@@ -201,15 +246,77 @@
     els.pvBody.innerHTML = PEOPL_MD.toHtml(resolvedBody());
   }
 
-  // ---- fill the Outlook compose window (active tab) -----------------------
+  // ---- Saved Forms --------------------------------------------------------
+  function loadForms(cb) {
+    if (typeof chrome === "undefined" || !chrome.storage) { cb([]); return; }
+    chrome.storage.local.get(FORMS_KEY, function (res) { cb((res && res[FORMS_KEY]) || []); });
+  }
+  function saveForms(arr, cb) {
+    if (typeof chrome === "undefined" || !chrome.storage) { if (cb) cb(); return; }
+    var o = {}; o[FORMS_KEY] = arr;
+    chrome.storage.local.set(o, cb || function () {});
+  }
+  function refreshForms(keepSelection) {
+    var sel = keepSelection ? els.forms.value : null;
+    loadForms(function (arr) {
+      FORMS = arr;
+      els.forms.innerHTML = '<option value="">— none —</option>';
+      FORMS.forEach(function (f) {
+        var o = document.createElement("option");
+        o.value = f.id; o.textContent = f.name;
+        els.forms.appendChild(o);
+      });
+      if (sel) els.forms.value = sel;
+    });
+  }
+  function onSaveForm() {
+    if (!current) return;
+    var hint = values.client || values.project || "draft";
+    var name = window.prompt("Save this form as:", (current.name || "Form") + " — " + hint);
+    if (!name) return;
+    var form = {
+      id: "form-" + Date.now().toString(36),
+      name: name, templateId: current.id,
+      values: shallow(values), included: shallow(included), ts: Date.now()
+    };
+    FORMS.push(form);
+    saveForms(FORMS, function () { refreshForms(); els.forms.value = form.id; setStatus("Form saved ✓", "ok"); });
+  }
+  function onPickForm() {
+    var id = els.forms.value; if (!id) return;
+    var form = FORMS.filter(function (f) { return f.id === id; })[0]; if (!form) return;
+    var t = TEMPLATES.filter(function (x) { return x.id === form.templateId; })[0];
+    if (!t) { setStatus("That form's template was deleted.", "err"); return; }
+    current = t;
+    buildTemplateList(t.id);
+    formValues = shallow(form.values || {});
+    formIncluded = shallow(form.included || {});
+    renderTemplate(current);
+    els.forms.value = id;
+    setStatus('Loaded form "' + form.name + '"', "ok");
+  }
+  function onDeleteForm() {
+    var id = els.forms.value;
+    if (!id) { setStatus("Pick a saved form to delete.", "err"); return; }
+    var form = FORMS.filter(function (f) { return f.id === id; })[0]; if (!form) return;
+    if (!window.confirm('Delete saved form "' + form.name + '"?')) return;
+    FORMS = FORMS.filter(function (f) { return f.id !== id; });
+    saveForms(FORMS, function () { refreshForms(); setStatus("Form deleted.", "ok"); });
+  }
+  function onReset() {
+    formValues = {}; formIncluded = {};
+    els.forms.value = "";
+    if (current) renderTemplate(current);
+    setStatus("Form cleared.", "");
+  }
+
+  // ---- fill the Outlook compose window -----------------------------------
   function onInsert() {
     if (!current) return;
     var payload = {
       bodyHtml: PEOPL_MD.toHtml(resolvedBody()),
       subject: resolvedSubject(),
-      to: recipients(current.to),
-      cc: recipients(current.cc),
-      bcc: recipients(current.bcc)
+      to: recipients(current.to), cc: recipients(current.cc), bcc: recipients(current.bcc)
     };
     if (typeof chrome === "undefined" || !chrome.scripting || !chrome.tabs) {
       setStatus("Insert works inside the browser extension — use Copy here.", "err");
@@ -220,10 +327,7 @@
       chrome.scripting.executeScript(
         { target: { tabId: tabId }, func: pageFill, args: [payload] },
         function (results) {
-          if (chrome.runtime.lastError) {
-            setStatus("Couldn't reach the Outlook window — use Copy, then paste.", "err");
-            return;
-          }
+          if (chrome.runtime.lastError) { setStatus("Couldn't reach the Outlook window — use Copy, then paste.", "err"); return; }
           var r = (results && results[0] && results[0].result) || {};
           setStatus(summarize(payload, r), r.body ? "ok" : "err");
         }
@@ -231,8 +335,6 @@
     });
   }
 
-  // Find the Outlook tab to act on: the one the launcher remembered, else any
-  // open Outlook tab (works whether Outlook is a normal tab or an app/PWA window).
   function resolveOutlookTab(cb) {
     function ok(url) {
       return /^https:\/\/([^/]*\.)?(outlook\.(office|office365|live)\.com|outlook\.cloud\.microsoft)\//.test(url || "");
@@ -249,13 +351,10 @@
         var id = res && res.targetTabId;
         if (id == null) return fallback();
         chrome.tabs.get(id, function (tab) {
-          if (!chrome.runtime.lastError && tab && ok(tab.url)) cb(tab.id);
-          else fallback();
+          if (!chrome.runtime.lastError && tab && ok(tab.url)) cb(tab.id); else fallback();
         });
       });
-    } else {
-      fallback();
-    }
+    } else { fallback(); }
   }
 
   function summarize(payload, r) {
@@ -270,11 +369,8 @@
     return "Filled " + done.join(", ") + "; couldn't set " + missed.join(", ") + " — set those manually.";
   }
 
-  /* Runs INSIDE the Outlook page (serialized by executeScript). Self-contained.
-     Inserts body at the caret, then sets Subject / To / Cc / Bcc best-effort. */
   function pageFill(payload) {
     var report = { body: false, subject: false, to: false, cc: false, bcc: false };
-
     function visible(el) { return el && el.offsetParent !== null; }
     function findOne(selectors) {
       for (var i = 0; i < selectors.length; i++) {
@@ -300,7 +396,6 @@
         (el.getAttribute && (el.getAttribute("contenteditable") === "true" || el.getAttribute("contenteditable") === ""))));
     }
 
-    // 1) BODY first, while the caret is still in the message body.
     if (payload.bodyHtml) {
       var sel = window.getSelection();
       var editable = document.activeElement;
@@ -311,8 +406,7 @@
         if (node) editable = node;
       }
       if (!isEditable(editable)) {
-        var cands = Array.prototype.slice.call(
-          document.querySelectorAll('[contenteditable="true"],[contenteditable=""],[role="textbox"]'))
+        var cands = Array.prototype.slice.call(document.querySelectorAll('[contenteditable="true"],[contenteditable=""],[role="textbox"]'))
           .filter(function (e) { return e.offsetParent !== null; });
         cands.sort(function (a, b) { return (b.offsetWidth * b.offsetHeight) - (a.offsetWidth * a.offsetHeight); });
         editable = cands[0];
@@ -323,33 +417,31 @@
           var s = window.getSelection(), range;
           if (s && s.rangeCount && editable.contains(s.anchorNode)) range = s.getRangeAt(0);
           else { range = document.createRange(); range.selectNodeContents(editable); range.collapse(false); s.removeAllRanges(); s.addRange(range); }
-          var ok = false;
-          try { ok = document.execCommand("insertHTML", false, payload.bodyHtml); } catch (e) { ok = false; }
-          if (!ok) { range.deleteContents(); range.insertNode(range.createContextualFragment(payload.bodyHtml)); }
+          var okIns = false;
+          try { okIns = document.execCommand("insertHTML", false, payload.bodyHtml); } catch (e) { okIns = false; }
+          if (!okIns) { range.deleteContents(); range.insertNode(range.createContextualFragment(payload.bodyHtml)); }
           report.body = true;
         } catch (e) { report.body = false; }
       }
     }
 
-    // 2) SUBJECT (reliable: plain input).
     if (payload.subject) {
       var subj = findOne(['input[aria-label="Add a subject"]', 'input[aria-label*="subject" i]',
                           'input[placeholder*="subject" i]', 'input[id*="Subject" i]']);
       if (subj) { setNativeValue(subj, payload.subject); report.subject = true; }
     }
 
-    // 3) RECIPIENTS (best-effort: type each address + Enter to tokenise).
     function fillRecip(kind, value) {
       if (!value) return false;
       var labels = { to: ["To"], cc: ["Cc"], bcc: ["Bcc"] }[kind];
-      var sel = [];
+      var sels = [];
       labels.forEach(function (L) {
-        sel.push('input[aria-label="' + L + '"]');
-        sel.push('input[aria-label*="' + L + '" i]');
-        sel.push('div[role="textbox"][aria-label*="' + L + '" i]');
-        sel.push('[contenteditable="true"][aria-label*="' + L + '" i]');
+        sels.push('input[aria-label="' + L + '"]');
+        sels.push('input[aria-label*="' + L + '" i]');
+        sels.push('div[role="textbox"][aria-label*="' + L + '" i]');
+        sels.push('[contenteditable="true"][aria-label*="' + L + '" i]');
       });
-      var field = findOne(sel);
+      var field = findOne(sels);
       if (!field) return false;
       field.focus();
       value.split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (a) {
@@ -372,7 +464,6 @@
     var md = resolvedBody();
     var html = PEOPL_MD.toHtml(md);
     var plain = PEOPL_MD.strip(md);
-    // Prefer a rich copy so formatting survives the paste into Outlook.
     if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
       try {
         var item = new ClipboardItem({
@@ -393,22 +484,15 @@
           function () { setStatus("Copied ✓ — paste into your email.", "ok"); },
           function () { setStatus("Copy failed — select the preview text and copy manually.", "err"); }
         );
-      } else {
-        setStatus("Clipboard not available.", "err");
-      }
+      } else { setStatus("Clipboard not available.", "err"); }
     }
   }
 
   // ---- utilities ----------------------------------------------------------
-  function esc(text) {
-    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-  function prettify(id) {
-    return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
-  }
-  function camel(id) {
-    return id.replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); });
-  }
+  function shallow(o) { var r = {}; for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) r[k] = o[k]; return r; }
+  function esc(text) { return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function prettify(id) { return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
+  function camel(id) { return id.replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); }); }
   function setStatus(msg, kind) {
     if (!els.status) return;
     els.status.textContent = msg || "";

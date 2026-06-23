@@ -39,10 +39,19 @@ with **Win + ←/→**; resize it to whatever's comfortable.
 > custom control). Glance at them after inserting — if one didn't fill, set it manually,
 > or use **Copy** for the body. Everything is shown in the preview so it's easy to check.
 
+### Saved forms & remembered entries
+- The form **remembers what you've typed** — switching templates, or editing one, keeps your
+  entries (matched by field name). **Reset** clears them back to the template defaults.
+- **Saved forms** (top of the window) save a template *with your filled-in values* under a name:
+  fill it in → **Save…** → name it (e.g. "Smith – fee proposal"). Pick it from the **Saved forms**
+  list anytime to reload, then Insert. **🗑** deletes the selected one. Templates stay the blank masters.
+
 ## Creating & editing templates (no code)
 
-In the tool window, click **✎ Edit** (top-right) — or right-click the toolbar icon →
-**Options**. That opens the built-in editor in a full tab:
+In the tool window, click **✎ Edit templates** (top-right). The editor **slides out in the
+same window**; click **‹ Done** to slide back to your form. Changes sync live — your compose
+form updates as you edit. (Right-click the toolbar icon → **Options** still opens it in a full
+tab too.) The editor:
 
 - **+ New template** — start a fresh one (comes pre-wired with `{{client}}` and `{{signoff}}`).
 - **Template name / Subject / Email body** — type your email. Put a `{{field}}` wherever

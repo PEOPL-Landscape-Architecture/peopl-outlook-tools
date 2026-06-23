@@ -26,6 +26,22 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 .hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .linkbtn { background: none; border: none; color: var(--accent); font-size: 12px; padding: 2px 4px; cursor: pointer; }
 .linkbtn:hover { text-decoration: underline; }
+.forms-row { display: flex; gap: 6px; align-items: center; }
+.forms-row select { flex: 1; min-width: 0; }
+.iconbtn { background: transparent; border: 1px solid var(--line); color: var(--fg); border-radius: 4px; padding: 6px 9px; cursor: pointer; }
+.iconbtn:hover { filter: brightness(1.05); }
+.actions .secondary { flex: 0 0 auto; }
+
+/* Slide-out editor panel — one window, editor pops over the compose form. */
+.editor-panel {
+  position: fixed; inset: 0; z-index: 50; background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .18s ease;
+}
+.editor-panel.open { transform: translateX(0); }
+.editor-panel-bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.editor-panel-title { font-weight: 600; }
+#editor-frame { flex: 1; width: 100%; height: 100%; border: 0; }
 .field, .slots > .slot { margin-bottom: 10px; }
 label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
 .slot-head { display: flex; align-items: center; gap: 6px; cursor: default; }
