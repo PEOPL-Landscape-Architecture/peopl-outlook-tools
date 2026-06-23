@@ -49,6 +49,10 @@ select, input[type="text"], textarea {
 }
 select:focus, input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
+.fmt-bar { display: flex; gap: 4px; margin-bottom: 4px; }
+.fmt-btn { font: inherit; font-size: 11px; line-height: 1.2; padding: 1px 7px; min-width: 24px;
+  border: 1px solid var(--line); background: var(--field-bg); color: var(--fg); border-radius: 4px; cursor: pointer; }
+.fmt-btn:hover { filter: brightness(1.06); }
 
 .preview { }
 .preview-head { position: sticky; top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;

@@ -234,7 +234,7 @@
     bodyRow.appendChild(ta);
     var tb = document.createElement("div");
     tb.className = "body-toolbar";
-    tb.appendChild(makeFormatBar(ta));
+    tb.appendChild(PEOPL_TT.bar(ta));
     var mk = document.createElement("button");
     mk.className = "btn tiny"; mk.type = "button"; mk.textContent = "Make field";
     mk.title = "Turn the selected text into a {{field}}";
@@ -381,7 +381,7 @@
       if (type !== "textarea") di.type = "text";
       di.value = slot.default != null ? slot.default : "";
       di.addEventListener("input", function () { slot.default = di.value; updatePreview(); scheduleSave(); });
-      if (type === "textarea") { dRow.appendChild(makeFormatBar(di)); rememberHeight(di, "d:" + t.id + ":" + tok); }
+      if (type === "textarea") { dRow.appendChild(PEOPL_TT.bar(di)); rememberHeight(di, "d:" + t.id + ":" + tok); }
       dRow.appendChild(di); card.appendChild(dRow);
     }
     return card;
@@ -449,7 +449,7 @@
     rm.className = "rm"; rm.type = "button"; rm.title = "Remove option"; rm.textContent = "×";
     rm.addEventListener("click", function () { slot.options.splice(idx, 1); rebuildFields(); updatePreview(); scheduleSave(); });
     var mid = document.createElement("div");
-    mid.appendChild(makeFormatBar(txtI));
+    mid.appendChild(PEOPL_TT.bar(txtI));
     mid.appendChild(txtI);
     row.appendChild(labI); row.appendChild(mid); row.appendChild(rm);
     return row;
@@ -474,50 +474,7 @@
     ta.setSelectionRange(pos, pos);
   }
 
-  // A compact formatting toolbar bound to a specific textarea. Used on the body,
-  // on paragraph-field defaults, and on each dropdown option's text.
-  function makeFormatBar(ta) {
-    var bar = document.createElement("div");
-    bar.className = "fmt-bar";
-    [["B", "bold", "Bold"], ["i", "italic", "Italic"], ["•", "ul", "Bulleted list"],
-     ["1.", "ol", "Numbered list"], ["↗", "link", "Link"]].forEach(function (spec) {
-      var b = document.createElement("button");
-      b.type = "button"; b.className = "fmt-btn"; b.textContent = spec[0]; b.title = spec[2];
-      if (spec[1] === "bold") b.style.fontWeight = "700";
-      if (spec[1] === "italic") b.style.fontStyle = "italic";
-      b.addEventListener("mousedown", function (ev) { ev.preventDefault(); }); // keep textarea selection
-      b.addEventListener("click", function () { applyFormatTo(ta, spec[1]); });
-      bar.appendChild(b);
-    });
-    return bar;
-  }
-
-  function applyFormatTo(ta, kind) {
-    if (!ta) return;
-    var s = ta.selectionStart, e = ta.selectionEnd, val = ta.value;
-    var before = val.slice(0, s), sel = val.slice(s, e), after = val.slice(e);
-    var text, cs, ce;
-    if (kind === "bold" || kind === "italic") {
-      var mark = kind === "bold" ? "**" : "*";
-      var inner = sel || (kind === "bold" ? "bold text" : "italic text");
-      var ins = mark + inner + mark;
-      text = before + ins + after; cs = before.length + mark.length; ce = cs + inner.length;
-    } else if (kind === "ul" || kind === "ol") {
-      var src = sel || "First item\nSecond item";
-      var n = 1;
-      var block = src.split(/\n/).map(function (l) { return (kind === "ul" ? "- " : (n++) + ". ") + l; }).join("\n");
-      var pre = (before && !/\n$/.test(before)) ? before + "\n" : before;
-      var post = (after && !/^\n/.test(after)) ? "\n" + after : after;
-      text = pre + block + post; cs = pre.length; ce = pre.length + block.length;
-    } else { // link
-      var label = sel || "link text";
-      var head = "[" + label + "](https://";
-      text = before + head + ")" + after; cs = before.length + head.length; ce = cs;
-    }
-    ta.value = text;
-    ta.dispatchEvent(new Event("input", { bubbles: true })); // routes to the right model + preview + save
-    ta.focus(); ta.setSelectionRange(cs, ce);
-  }
+  // Formatting toolbar + actions now live in texttools.js (window.PEOPL_TT).
 
   // ---- preview ------------------------------------------------------------
   function previewValue(slot) {

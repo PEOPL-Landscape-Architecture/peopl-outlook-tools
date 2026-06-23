@@ -66,6 +66,8 @@ tab too.) The editor:
   or type the marks directly: `**bold**`, `*italic*`, `- bullets`, `1. numbered`,
   `[text](https://…)`. The preview shows it rendered, and it inserts into Outlook as real
   bold / italics / lists / links — so a dropdown option can be a bold sentence or a numbered block.
+  Pressing **Enter** in a numbered/bulleted list **auto-continues** it (Enter on an empty item ends
+  the list). The main compose window's paragraph fields have the same toolbar.
 - **Fields** — each `{{field}}` gets a card. Pick its type:
   - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
   - **Dropdown** → add options (a short *menu label* + the *text inserted*), and a default choice.

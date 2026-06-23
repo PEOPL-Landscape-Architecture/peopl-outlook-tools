@@ -212,6 +212,7 @@
       }
       ctrl.id = "f-" + id;
       if (optional && !included[id]) ctrl.disabled = true;
+      if (ctrl.tagName === "TEXTAREA" && window.PEOPL_TT) wrap.appendChild(PEOPL_TT.bar(ctrl));
       wrap.appendChild(ctrl);
       if (ctrl.tagName === "TEXTAREA") {
         ctrl.dataset.fid = id;
