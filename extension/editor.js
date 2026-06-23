@@ -188,7 +188,7 @@
     bodyRow.appendChild(bl);
     var ta = document.createElement("textarea");
     ta.id = "f-body"; ta.value = t.body || "";
-    ta.addEventListener("input", function () { t.body = ta.value; rebuildFields(); updatePreview(); });
+    ta.addEventListener("input", function () { t.body = ta.value; rebuildFields(); updatePreview(); scheduleSave(); });
     bodyRow.appendChild(ta);
     var tb = document.createElement("div");
     tb.className = "body-toolbar";
