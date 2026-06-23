@@ -121,7 +121,9 @@
 
   function renderEditor() {
     var pane = byId("edit-pane");
+    var pp = byId("preview-pane");
     pane.innerHTML = "";
+    if (pp) pp.innerHTML = "";
     var t = cur();
     if (!t) {
       pane.innerHTML = '<div class="empty">No template selected. Click <strong>+ New template</strong> to create one.</div>';
@@ -176,7 +178,7 @@
     var pw = document.createElement("div");
     pw.className = "preview-wrap";
     pw.innerHTML = '<div class="ph">Preview (using default values)</div><div class="pv-meta" id="pv-meta"></div><div class="pv-body" id="pv-body"></div>';
-    pane.appendChild(pw);
+    (byId("preview-pane") || pane).appendChild(pw);
 
     rebuildFields();
     updatePreview();
