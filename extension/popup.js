@@ -13,6 +13,7 @@
   var TEMPLATES = [];
   var FORMS = [];
   var current = null;
+  var currentFormId = null;   // the saved form currently loaded (for plain "Save")
 
   // effective values used for preview/insert (recomputed each render)
   var values = {};
@@ -45,14 +46,14 @@
       chrome.storage.onChanged.addListener(function (changes, area) {
         if (area !== "local") return;
         if (changes[PEOPL_STORE.KEY]) reloadTemplates();   // live sync from the editor panel
-        if (changes[FORMS_KEY]) refreshForms();
+        if (changes[FORMS_KEY]) refreshForms(true);
       });
     }
   });
 
   // ---- setup --------------------------------------------------------------
   function cacheEls() {
-    ["app", "tpl", "forms", "form-save", "form-del", "slots", "pv-meta", "pv-body",
+    ["app", "tpl", "forms", "form-save", "form-saveas", "form-del", "slots", "pv-meta", "pv-body",
      "btn-insert", "btn-copy", "btn-reset", "btn-edit", "editor-panel", "editor-frame",
      "editor-close", "status"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
@@ -85,7 +86,7 @@
   function wireEvents() {
     els.tpl.addEventListener("change", function () {
       current = TEMPLATES[Number(els.tpl.value)] || null;
-      els.forms.value = "";
+      els.forms.value = ""; currentFormId = null;
       if (current) renderTemplate(current);   // retains formValues across the switch
     });
     els.btnInsert.addEventListener("click", onInsert);
@@ -94,7 +95,8 @@
     els.btnEdit.addEventListener("click", openEditor);
     els.editorClose.addEventListener("click", closeEditor);
     els.forms.addEventListener("change", onPickForm);
-    els.formSave.addEventListener("click", onSaveForm);
+    els.formSave.addEventListener("click", onSave);
+    els.formSaveas.addEventListener("click", onSaveAs);
     els.formDel.addEventListener("click", onDeleteForm);
   }
 
@@ -288,15 +290,27 @@
       if (sel) els.forms.value = sel;
     });
   }
-  function onSaveForm() {
+  // Plain Save: overwrite the loaded form in place, no prompt.
+  function onSave() {
+    if (!current) return;
+    var f = null;
+    for (var i = 0; i < FORMS.length; i++) { if (FORMS[i].id === currentFormId) { f = FORMS[i]; break; } }
+    if (!f) { onSaveAs(); return; }   // nothing loaded -> behave like Save as
+    f.templateId = current.id;
+    f.values = shallow(values);
+    f.included = shallow(included);
+    f.ts = Date.now();
+    saveForms(FORMS, function () { refreshForms(true); els.forms.value = f.id; setStatus('Saved "' + f.name + '" ✓', "ok"); });
+  }
+
+  // Save as: prompt for a name; overwrite if the name already exists.
+  function onSaveAs() {
     if (!current) return;
     var hint = values.client || values.project || "draft";
-    var name = window.prompt("Save this form as:", (current.name || "Form") + " — " + hint);
+    var name = window.prompt("Save as:", (current.name || "Form") + " — " + hint);
     if (name == null) return;
     name = name.trim();
     if (!name) return;
-
-    // Match an existing form by name (case-insensitive) -> offer to overwrite.
     var existing = null;
     for (var i = 0; i < FORMS.length; i++) {
       if ((FORMS[i].name || "").trim().toLowerCase() === name.toLowerCase()) { existing = FORMS[i]; break; }
@@ -310,11 +324,12 @@
     target.included = shallow(included);
     target.ts = Date.now();
     if (!existing) FORMS.push(target);
+    currentFormId = target.id;
 
     saveForms(FORMS, function () {
-      refreshForms();
+      refreshForms(true);
       els.forms.value = target.id;
-      setStatus(existing ? "Form updated ✓" : "Form saved ✓", "ok");
+      setStatus(existing ? 'Updated "' + name + '" ✓' : 'Saved "' + name + '" ✓', "ok");
     });
   }
   function onPickForm() {
@@ -328,6 +343,7 @@
     formIncluded = shallow(form.included || {});
     renderTemplate(current);
     els.forms.value = id;
+    currentFormId = id;
     setStatus('Loaded form "' + form.name + '"', "ok");
   }
   function onDeleteForm() {
@@ -336,11 +352,12 @@
     var form = FORMS.filter(function (f) { return f.id === id; })[0]; if (!form) return;
     if (!window.confirm('Delete saved form "' + form.name + '"?')) return;
     FORMS = FORMS.filter(function (f) { return f.id !== id; });
+    if (id === currentFormId) currentFormId = null;
     saveForms(FORMS, function () { refreshForms(); setStatus("Form deleted.", "ok"); });
   }
   function onReset() {
     formValues = {}; formIncluded = {};
-    els.forms.value = "";
+    els.forms.value = ""; currentFormId = null;
     if (current) renderTemplate(current);
     setStatus("Form cleared.", "");
   }
@@ -349,7 +366,7 @@
   function onInsert() {
     if (!current) return;
     var payload = {
-      bodyHtml: PEOPL_MD.toHtml(resolvedBody()),
+      bodyHtml: PEOPL_MD.toEmailHtml(resolvedBody()),
       subject: resolvedSubject(),
       to: recipients(current.to), cc: recipients(current.cc), bcc: recipients(current.bcc)
     };
@@ -497,7 +514,7 @@
   function onCopy() {
     if (!current) return;
     var md = resolvedBody();
-    var html = PEOPL_MD.toHtml(md);
+    var html = PEOPL_MD.toEmailHtml(md);
     var plain = PEOPL_MD.strip(md);
     if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
       try {

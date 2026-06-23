@@ -53,6 +53,7 @@ textarea { resize: vertical; min-height: 54px; line-height: 1.4; }
 .fmt-btn { font: inherit; font-size: 11px; line-height: 1.2; padding: 1px 7px; min-width: 24px;
   border: 1px solid var(--line); background: var(--field-bg); color: var(--fg); border-radius: 4px; cursor: pointer; }
 .fmt-btn:hover { filter: brightness(1.06); }
+.fmt-color { width: 28px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--field-bg); cursor: pointer; vertical-align: middle; }
 
 .preview { }
 .preview-head { position: sticky; top: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;

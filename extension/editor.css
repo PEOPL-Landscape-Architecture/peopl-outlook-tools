@@ -30,6 +30,7 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; font-size:
 .fmt-btn { font: inherit; font-size: 11px; line-height: 1.2; padding: 1px 7px; min-width: 24px;
   border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 4px; cursor: pointer; }
 .fmt-btn:hover { filter: brightness(1.06); }
+.fmt-color { width: 28px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); cursor: pointer; vertical-align: middle; }
 
 /* list | editing controls | preview */
 .layout { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 158px minmax(160px, 1fr) 6px var(--pw, 380px); }

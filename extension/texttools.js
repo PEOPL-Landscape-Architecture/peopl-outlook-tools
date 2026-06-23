@@ -8,12 +8,16 @@
 
   function fire(ta) { ta.dispatchEvent(new Event("input", { bubbles: true })); }
 
-  function applyFormat(ta, kind) {
+  function applyFormat(ta, kind, arg, range) {
     if (!ta) return;
-    var s = ta.selectionStart, e = ta.selectionEnd, val = ta.value;
+    var s = range ? range[0] : ta.selectionStart, e = range ? range[1] : ta.selectionEnd, val = ta.value;
     var before = val.slice(0, s), sel = val.slice(s, e), after = val.slice(e);
     var text, cs, ce;
-    if (kind === "bold" || kind === "italic") {
+    if (kind === "color") {
+      var inC = sel || "coloured text";
+      var openC = "[c:" + arg + "]";
+      text = before + openC + inC + "[/c]" + after; cs = before.length + openC.length; ce = cs + inC.length;
+    } else if (kind === "bold" || kind === "italic") {
       var mark = kind === "bold" ? "**" : "*";
       var inner = sel || (kind === "bold" ? "bold text" : "italic text");
       var ins = mark + inner + mark;
@@ -81,6 +85,12 @@
       b.addEventListener("click", function () { applyFormat(ta, spec[1]); });
       el.appendChild(b);
     });
+    var color = document.createElement("input");
+    color.type = "color"; color.value = "#000000"; color.className = "fmt-color"; color.title = "Text colour";
+    var savedRange = null;
+    color.addEventListener("mousedown", function () { savedRange = [ta.selectionStart, ta.selectionEnd]; });
+    color.addEventListener("change", function () { applyFormat(ta, "color", color.value, savedRange); savedRange = null; });
+    el.appendChild(color);
     return el;
   }
 

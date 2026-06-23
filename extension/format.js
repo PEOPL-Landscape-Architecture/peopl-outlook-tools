@@ -10,7 +10,12 @@
   }
 
   function inline(s) {
-    // links first (so ** inside labels still works)
+    // colour: [c:VALUE]text[/c]  (VALUE sanitised to a safe colour token)
+    s = s.replace(/\[c:([^\]]+)\]([\s\S]*?)\[\/c\]/g, function (_, col, inner) {
+      col = col.trim();
+      return /^#?[0-9a-zA-Z]+$/.test(col) ? '<span style="color:' + col + '">' + inner + "</span>" : inner;
+    });
+    // links (so ** inside labels still works)
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (_, label, url) {
       return '<a href="' + url + '">' + label + "</a>";
     });
@@ -51,6 +56,34 @@
     return out.join("");
   }
 
+  // Email/clipboard version: explicit black text, and a blank line between
+  // paragraphs (Outlook drops <p> margins, so spacing is added as spacer rows).
+  // Lists use the same baked-in markers as the preview.
+  function toEmailHtml(src) {
+    var lines = esc(src).split(/\r\n|\r|\n/);
+    var blocks = [], para = [], list = null;
+    function flushPara() { if (para.length) { blocks.push("<div>" + para.map(inline).join("<br>") + "</div>"); para = []; } }
+    function flushList() {
+      if (!list) return;
+      var n = 1;
+      blocks.push(list.items.map(function (it) {
+        var marker = (list.t === "ol") ? (n++) + "." : "•";
+        return '<div style="padding-left:1.8em;text-indent:-1.8em;margin:0">' + marker + "&nbsp;&nbsp;" + inline(it) + "</div>";
+      }).join(""));
+      list = null;
+    }
+    lines.forEach(function (line) {
+      var ul = line.match(/^\s*[-*]\s+(.*)$/);
+      var ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (ul) { flushPara(); if (!list || list.t !== "ul") { flushList(); list = { t: "ul", items: [] }; } list.items.push(ul[1]); }
+      else if (ol) { flushPara(); if (!list || list.t !== "ol") { flushList(); list = { t: "ol", items: [] }; } list.items.push(ol[1]); }
+      else if (/^\s*$/.test(line)) { flushPara(); }
+      else { flushList(); para.push(line); }
+    });
+    flushPara(); flushList();
+    return '<div style="color:#000000">' + blocks.join('<div><br></div>') + "</div>";
+  }
+
   // Plain-text version (markers removed) for the clipboard fallback.
   function strip(src) {
     return String(src == null ? "" : src)
@@ -60,5 +93,5 @@
       .replace(/_([^_\n]+)_/g, "$1");
   }
 
-  window.PEOPL_MD = { toHtml: toHtml, strip: strip };
+  window.PEOPL_MD = { toHtml: toHtml, toEmailHtml: toEmailHtml, strip: strip };
 })();

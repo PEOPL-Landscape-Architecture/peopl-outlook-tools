@@ -43,8 +43,9 @@ with **Win + ←/→**; resize it to whatever's comfortable.
 - The form **remembers what you've typed** — switching templates, or editing one, keeps your
   entries (matched by field name). **Reset** clears them back to the template defaults.
 - **Saved forms** (top of the window) save a template *with your filled-in values* under a name:
-  fill it in → **Save…** → name it (e.g. "Smith – fee proposal"). Pick it from the **Saved forms**
-  list anytime to reload, then Insert. **🗑** deletes the selected one. Templates stay the blank masters.
+  fill it in → **Save as…** → name it (e.g. "Smith – fee proposal"). Pick it from the **Saved forms**
+  list anytime to reload, then Insert. **Save** overwrites the loaded form in place (no rename);
+  **🗑** deletes the selected one. Templates stay the blank masters.
 
 ## Creating & editing templates (no code)
 
@@ -67,7 +68,9 @@ tab too.) The editor:
   `[text](https://…)`. The preview shows it rendered, and it inserts into Outlook as real
   bold / italics / lists / links — so a dropdown option can be a bold sentence or a numbered block.
   Pressing **Enter** in a numbered/bulleted list **auto-continues** it (Enter on an empty item ends
-  the list). The main compose window's paragraph fields have the same toolbar.
+  the list). The main compose window's paragraph fields have the same toolbar. The **colour swatch**
+  (defaults to black) colours the selected text. Inserted email text is black with proper paragraph
+  spacing.
 - **Fields** — each `{{field}}` gets a card. Pick its type:
   - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
   - **Dropdown** → add options (a short *menu label* + the *text inserted*), and a default choice.
