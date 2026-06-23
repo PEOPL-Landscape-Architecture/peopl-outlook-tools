@@ -24,15 +24,23 @@
   var tokenOrder = [];
   var TOKEN = /\{\{\s*([\w.\-]+)\s*\}\}/g;
 
+  var HEIGHTS_KEY = "peoplFieldHeights";
+  var fieldHeights = {};                 // slot id -> remembered textarea height (px)
+  var hSaveTimer = null;
+  var hObserver = (typeof ResizeObserver !== "undefined") ? new ResizeObserver(onFieldResize) : null;
+
   document.addEventListener("DOMContentLoaded", function () {
     cacheEls();
     wireEvents();
-    PEOPL_STORE.load(function (list) {
-      TEMPLATES = list || [];
-      buildTemplateList();
-      if (current) renderTemplate(current);
+    loadFieldHeights(function () {
+      PEOPL_STORE.load(function (list) {
+        TEMPLATES = list || [];
+        buildTemplateList();
+        if (current) renderTemplate(current);
+      });
     });
     refreshForms();
+    setupComposeSplitter();
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener(function (changes, area) {
         if (area !== "local") return;
@@ -134,6 +142,7 @@
     values = {};
     included = {};
     tokenOrder = [];
+    if (hObserver) hObserver.disconnect();
     var seen = {};
     [t.to, t.cc, t.bcc, t.subject, t.body].forEach(function (s) {
       tokensIn(s).forEach(function (id) { if (!seen[id]) { seen[id] = true; tokenOrder.push(id); } });
@@ -204,6 +213,11 @@
       ctrl.id = "f-" + id;
       if (optional && !included[id]) ctrl.disabled = true;
       wrap.appendChild(ctrl);
+      if (ctrl.tagName === "TEXTAREA") {
+        ctrl.dataset.fid = id;
+        if (fieldHeights[id]) ctrl.style.height = fieldHeights[id] + "px";
+        if (hObserver) hObserver.observe(ctrl);
+      }
 
       if (optional && chk) {
         chk.addEventListener("change", function () {
@@ -490,6 +504,65 @@
         );
       } else { setStatus("Clipboard not available.", "err"); }
     }
+  }
+
+  // ---- remember expanded paragraph-field heights -------------------------
+  function loadFieldHeights(cb) {
+    if (typeof chrome === "undefined" || !chrome.storage) { fieldHeights = {}; cb(); return; }
+    chrome.storage.local.get(HEIGHTS_KEY, function (res) { fieldHeights = (res && res[HEIGHTS_KEY]) || {}; cb(); });
+  }
+  function onFieldResize(entries) {
+    var changed = false;
+    entries.forEach(function (e) {
+      var id = e.target.dataset && e.target.dataset.fid;
+      if (!id) return;
+      var h = Math.round(e.target.offsetHeight);
+      if (h > 0 && fieldHeights[id] !== h) { fieldHeights[id] = h; changed = true; }
+    });
+    if (changed) scheduleHeightsSave();
+  }
+  function scheduleHeightsSave() {
+    if (typeof chrome === "undefined" || !chrome.storage) return;
+    if (hSaveTimer) clearTimeout(hSaveTimer);
+    hSaveTimer = setTimeout(function () {
+      var o = {}; o[HEIGHTS_KEY] = fieldHeights;
+      try { chrome.storage.local.set(o); } catch (e) {}
+    }, 400);
+  }
+
+  // ---- resizable preview pane (compose) ----------------------------------
+  function setupComposeSplitter() {
+    var sp = document.getElementById("cmp-splitter");
+    var cols = document.querySelector(".cols");
+    if (!sp || !cols) return;
+    var GUT = 6, MINFIELDS = 220;
+    function clampPw(pw) {
+      var w = cols.getBoundingClientRect().width;
+      var maxPw = w - GUT - MINFIELDS;
+      return Math.max(220, Math.min(pw, Math.max(260, maxPw)));
+    }
+    function setPw(pw) { cols.style.setProperty("--pw", clampPw(pw) + "px"); }
+    function curPw() { return parseInt(getComputedStyle(cols).getPropertyValue("--pw"), 10); }
+    var dragging = false;
+    function onMove(e) { if (dragging) setPw(cols.getBoundingClientRect().right - e.clientX); }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false; sp.classList.remove("dragging"); document.body.style.cursor = "";
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      var w = curPw();
+      if (w && typeof chrome !== "undefined" && chrome.storage) chrome.storage.local.set({ peoplComposePreviewW: w });
+    }
+    sp.addEventListener("pointerdown", function (e) {
+      dragging = true; sp.classList.add("dragging"); document.body.style.cursor = "col-resize"; e.preventDefault();
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+    window.addEventListener("resize", function () { var c = curPw(); if (c) setPw(c); });
+    function applyInitial(w) { requestAnimationFrame(function () { setPw(w || 320); }); }
+    if (typeof chrome !== "undefined" && chrome.storage) {
+      chrome.storage.local.get("peoplComposePreviewW", function (res) { applyInitial(res && res.peoplComposePreviewW); });
+    } else { applyInitial(320); }
   }
 
   // ---- utilities ----------------------------------------------------------

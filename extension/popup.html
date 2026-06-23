@@ -12,38 +12,46 @@
       <button id="btn-edit" class="linkbtn" type="button" title="Edit templates">&#9998; Edit templates &#9656;</button>
     </header>
 
-    <section class="field">
-      <label for="tpl">Template</label>
-      <select id="tpl" autocomplete="off"></select>
-    </section>
+    <div class="cols">
+      <div id="left-pane" class="left-pane">
+        <section class="field">
+          <label for="tpl">Template</label>
+          <select id="tpl" autocomplete="off"></select>
+        </section>
 
-    <section class="field forms">
-      <label for="forms">Saved forms</label>
-      <div class="forms-row">
-        <select id="forms" autocomplete="off"><option value="">&mdash; none &mdash;</option></select>
-        <button id="form-save" class="secondary" type="button" title="Save the current form for reuse">Save&hellip;</button>
-        <button id="form-del" class="iconbtn" type="button" title="Delete the selected saved form">&#128465;</button>
+        <section class="field forms">
+          <label for="forms">Saved forms</label>
+          <div class="forms-row">
+            <select id="forms" autocomplete="off"><option value="">&mdash; none &mdash;</option></select>
+            <button id="form-save" class="secondary" type="button" title="Save the current form for reuse">Save&hellip;</button>
+            <button id="form-del" class="iconbtn" type="button" title="Delete the selected saved form">&#128465;</button>
+          </div>
+        </section>
+
+        <section id="slots" class="slots"><!-- controls generated here --></section>
+
+        <section class="actions">
+          <button id="btn-insert" class="primary" type="button">Insert into email</button>
+          <button id="btn-copy" class="secondary" type="button">Copy</button>
+          <button id="btn-reset" class="secondary" type="button" title="Clear the fields">Reset</button>
+        </section>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
       </div>
-    </section>
 
-    <section id="slots" class="slots"><!-- controls generated here --></section>
+      <div id="cmp-splitter" class="splitter" title="Drag to resize the preview"></div>
 
-    <section class="preview">
-      <div class="preview-head">Preview</div>
-      <div class="preview-meta" id="pv-meta"></div>
-      <div class="preview-body" id="pv-body"></div>
-    </section>
-
-    <section class="actions">
-      <button id="btn-insert" class="primary" type="button">Insert into email</button>
-      <button id="btn-copy" class="secondary" type="button">Copy</button>
-      <button id="btn-reset" class="secondary" type="button" title="Clear the fields">Reset</button>
-    </section>
-
-    <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div id="right-pane" class="right-pane">
+        <section class="preview">
+          <div class="preview-head">Preview</div>
+          <div class="preview-meta" id="pv-meta"></div>
+          <div class="preview-body" id="pv-body"></div>
+        </section>
+      </div>
+    </div>
   </main>
 
-  <!-- Slide-out editor panel (single window; like Revit's "more options"). -->
+  <!-- Slide-out editor panel (single window). -->
   <div id="editor-panel" class="editor-panel">
     <div class="editor-panel-bar">
       <button id="editor-close" class="linkbtn" type="button">&#8249; Done</button>
