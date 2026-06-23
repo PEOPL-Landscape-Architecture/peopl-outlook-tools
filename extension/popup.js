@@ -291,14 +291,30 @@
     if (!current) return;
     var hint = values.client || values.project || "draft";
     var name = window.prompt("Save this form as:", (current.name || "Form") + " — " + hint);
+    if (name == null) return;
+    name = name.trim();
     if (!name) return;
-    var form = {
-      id: "form-" + Date.now().toString(36),
-      name: name, templateId: current.id,
-      values: shallow(values), included: shallow(included), ts: Date.now()
-    };
-    FORMS.push(form);
-    saveForms(FORMS, function () { refreshForms(); els.forms.value = form.id; setStatus("Form saved ✓", "ok"); });
+
+    // Match an existing form by name (case-insensitive) -> offer to overwrite.
+    var existing = null;
+    for (var i = 0; i < FORMS.length; i++) {
+      if ((FORMS[i].name || "").trim().toLowerCase() === name.toLowerCase()) { existing = FORMS[i]; break; }
+    }
+    if (existing && !window.confirm('A saved form named "' + existing.name + '" already exists.\n\nOverwrite it?')) return;
+
+    var target = existing || { id: "form-" + Date.now().toString(36) };
+    target.name = name;
+    target.templateId = current.id;
+    target.values = shallow(values);
+    target.included = shallow(included);
+    target.ts = Date.now();
+    if (!existing) FORMS.push(target);
+
+    saveForms(FORMS, function () {
+      refreshForms();
+      els.forms.value = target.id;
+      setStatus(existing ? "Form updated ✓" : "Form saved ✓", "ok");
+    });
   }
   function onPickForm() {
     var id = els.forms.value; if (!id) return;
