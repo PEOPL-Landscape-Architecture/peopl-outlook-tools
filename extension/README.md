@@ -69,8 +69,8 @@ tab too.) The editor:
   bold / italics / lists / links — so a dropdown option can be a bold sentence or a numbered block.
   Pressing **Enter** in a numbered/bulleted list **auto-continues** it (Enter on an empty item ends
   the list). The main compose window's paragraph fields have the same toolbar. The **colour swatch**
-  (defaults to black) colours the selected text. Inserted email text is black with proper paragraph
-  spacing.
+  (defaults to black) colours the selected text. Inserted email text is black, and line spacing is
+  exactly as typed — every blank line in the body is a blank line in the email (two in a row = two).
 - **Fields** — each `{{field}}` gets a card. Pick its type:
   - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
   - **Dropdown** → add options (a short *menu label* + the *text inserted*), and a default choice.

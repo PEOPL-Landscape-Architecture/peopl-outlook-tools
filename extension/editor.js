@@ -492,12 +492,14 @@
     if (slot.default) return slot.default;
     return "[" + (slot.label || "") + "]";
   }
-  function resolvePreview(str, t) {
+  // omit: what an omitted/empty field becomes (see popup.js resolve).
+  function resolvePreview(str, t, omit) {
+    omit = omit || "";
     return (str || "").replace(TOKEN, function (whole, id) {
       var slot = t.slots && t.slots[id];
       if (!slot) return whole;
-      if (slot.optional && slot.omitByDefault) return "";
-      return previewValue(slot);
+      if (slot.optional && slot.omitByDefault) return omit;
+      return previewValue(slot) || omit;
     });
   }
   function updatePreview() {
@@ -512,7 +514,7 @@
       return '<div class="pv-line"><span class="k">' + x[0] + ':</span> ' + esc(x[1]) + "</div>";
     }).join("");
     var body = byId("pv-body");
-    if (body) body.innerHTML = PEOPL_MD.toHtml(cleanBody(resolvePreview(t.body, t)));
+    if (body) body.innerHTML = PEOPL_MD.toHtml(PEOPL_MD.cleanBody(resolvePreview(t.body, t, PEOPL_MD.OMIT)));
   }
   function recipPreview(str, t) {
     return resolvePreview(str, t).split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).join("; ");
@@ -534,9 +536,6 @@
 
   // ---- utils --------------------------------------------------------------
   function byId(id) { return document.getElementById(id); }
-  function cleanBody(text) {
-    return String(text).replace(/[ \t]+(\r?\n)/g, "$1").replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "");
-  }
   function cleanSubject(text) { return String(text).replace(/\s{2,}/g, " ").trim(); }
   function esc(text) { return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   function prettify(id) { return id.replace(/[-_]+/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }

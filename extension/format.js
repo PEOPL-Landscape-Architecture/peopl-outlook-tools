@@ -25,63 +25,56 @@
     return s;
   }
 
-  function toHtml(src) {
+  // Line-for-line rendering: every blank line in the source becomes one empty
+  // line in the output, so 2+ blank lines show as 2+ (Outlook drops <p>
+  // margins, so all spacing is explicit spacer rows, never CSS margins).
+  // List items get their marker baked in as TEXT (not <ol>/<ul>): Outlook's
+  // compose editor strips inserted <ol> lists, which loses the numbering;
+  // literal markers + a hanging indent (inline CSS) survive insertion.
+  // Numbering carries across blank lines; any other line restarts it.
+  function render(src) {
     var lines = esc(src).split(/\r\n|\r|\n/);
     var out = [], para = [], list = null;
-    function flushPara() { if (para.length) { out.push("<p>" + para.map(inline).join("<br>") + "</p>"); para = []; } }
-    function flushList() {
-      if (!list) return;
-      // Render list items as styled lines with the marker baked in as TEXT (not
-      // <ol>/<ul>). Outlook's compose editor strips inserted <ol> lists, which
-      // loses the numbering; literal markers + a hanging indent (inline CSS)
-      // survive insertion and render identically in the preview.
-      var n = 1;
-      list.items.forEach(function (it) {
-        var marker = (list.t === "ol") ? (n++) + "." : "•";
-        out.push('<div style="padding-left:1.8em;text-indent:-1.8em;margin:2px 0">' + marker + "&nbsp;&nbsp;" + inline(it) + "</div>");
-      });
-      list = null;
+    function flushPara() { if (para.length) { out.push("<div>" + para.map(inline).join("<br>") + "</div>"); para = []; } }
+    function item(t, text) {
+      flushPara();
+      if (!list || list.t !== t) list = { t: t, n: 1 };
+      var marker = (t === "ol") ? (list.n++) + "." : "•";
+      out.push('<div style="padding-left:1.8em;text-indent:-1.8em;margin:0">' + marker + "&nbsp;&nbsp;" + inline(text) + "</div>");
     }
     lines.forEach(function (line) {
       var ul = line.match(/^\s*[-*]\s+(.*)$/);
       var ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
-      if (ul) { flushPara(); if (!list || list.t !== "ul") { flushList(); list = { t: "ul", items: [] }; } list.items.push(ul[1]); }
-      else if (ol) { flushPara(); if (!list || list.t !== "ol") { flushList(); list = { t: "ol", items: [] }; } list.items.push(ol[1]); }
-      // A blank line ends a paragraph, but NOT a list — a following item of the
-      // same kind keeps the same list, so numbering carries across blank lines.
-      else if (/^\s*$/.test(line)) { flushPara(); }
-      else { flushList(); para.push(line); }
+      if (ul) item("ul", ul[1]);
+      else if (ol) item("ol", ol[1]);
+      else if (/^\s*$/.test(line)) { flushPara(); out.push("<div><br></div>"); }
+      else { list = null; para.push(line); }
     });
-    flushPara(); flushList();
+    flushPara();
     return out.join("");
   }
 
-  // Email/clipboard version: explicit black text, and a blank line between
-  // paragraphs (Outlook drops <p> margins, so spacing is added as spacer rows).
-  // Lists use the same baked-in markers as the preview.
-  function toEmailHtml(src) {
-    var lines = esc(src).split(/\r\n|\r|\n/);
-    var blocks = [], para = [], list = null;
-    function flushPara() { if (para.length) { blocks.push("<div>" + para.map(inline).join("<br>") + "</div>"); para = []; } }
-    function flushList() {
-      if (!list) return;
-      var n = 1;
-      blocks.push(list.items.map(function (it) {
-        var marker = (list.t === "ol") ? (n++) + "." : "•";
-        return '<div style="padding-left:1.8em;text-indent:-1.8em;margin:0">' + marker + "&nbsp;&nbsp;" + inline(it) + "</div>";
-      }).join(""));
-      list = null;
-    }
-    lines.forEach(function (line) {
-      var ul = line.match(/^\s*[-*]\s+(.*)$/);
-      var ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
-      if (ul) { flushPara(); if (!list || list.t !== "ul") { flushList(); list = { t: "ul", items: [] }; } list.items.push(ul[1]); }
-      else if (ol) { flushPara(); if (!list || list.t !== "ol") { flushList(); list = { t: "ol", items: [] }; } list.items.push(ol[1]); }
-      else if (/^\s*$/.test(line)) { flushPara(); }
-      else { flushList(); para.push(line); }
+  // Preview version: inherits the panel's text colour.
+  function toHtml(src) { return render(src); }
+
+  // Email/clipboard version: explicit black text, same markup as the preview.
+  function toEmailHtml(src) { return '<div style="color:#000000">' + render(src) + "</div>"; }
+
+  // Tidies a resolved body. A line that held nothing but omitted/empty fields
+  // (marked with OMIT by the caller's resolver) is removed together with the
+  // blank line above it, so dropping a field never leaves a double gap; every
+  // blank line the template itself contains is kept.
+  var OMIT = "\u0000";
+  function cleanBody(text) {
+    var out = [];
+    String(text == null ? "" : text).split(/\r\n|\r|\n/).forEach(function (line) {
+      if (line.indexOf(OMIT) !== -1 && /^[\s\u0000]*$/.test(line)) {
+        if (out.length && /^\s*$/.test(out[out.length - 1])) out.pop();
+        return;
+      }
+      out.push(line.split(OMIT).join("").replace(/[ \t]+$/, ""));
     });
-    flushPara(); flushList();
-    return '<div style="color:#000000">' + blocks.join('<div><br></div>') + "</div>";
+    return out.join("\n").replace(/^\s+|\s+$/g, "");
   }
 
   // Plain-text version (markers removed) for the clipboard fallback.
@@ -93,5 +86,5 @@
       .replace(/_([^_\n]+)_/g, "$1");
   }
 
-  window.PEOPL_MD = { toHtml: toHtml, toEmailHtml: toEmailHtml, strip: strip };
+  window.PEOPL_MD = { toHtml: toHtml, toEmailHtml: toEmailHtml, strip: strip, cleanBody: cleanBody, OMIT: OMIT };
 })();

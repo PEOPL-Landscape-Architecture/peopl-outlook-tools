@@ -237,21 +237,22 @@
   }
 
   // ---- resolve + cleanup + preview ---------------------------------------
-  function resolve(str) {
+  // omit: what an omitted/empty field becomes ("" by default; the body passes
+  // PEOPL_MD.OMIT so cleanBody can drop the line it leaves behind).
+  function resolve(str, omit) {
+    omit = omit || "";
     return (str || "").replace(TOKEN, function (whole, id) {
-      if (included[id] === false) return "";
-      return (values[id] != null) ? values[id] : whole;
+      if (included[id] === false) return omit;
+      if (values[id] == null) return whole;
+      return values[id] === "" ? omit : values[id];
     });
-  }
-  function cleanBody(text) {
-    return String(text).replace(/[ \t]+(\r?\n)/g, "$1").replace(/\n{3,}/g, "\n\n").replace(/^\s+|\s+$/g, "");
   }
   function cleanSubject(text) { return String(text).replace(/\s{2,}/g, " ").trim(); }
   function recipients(str) {
     if (!str) return "";
     return resolve(str).split(/[;,]+/).map(function (s) { return s.trim(); }).filter(Boolean).join("; ");
   }
-  function resolvedBody() { return cleanBody(resolve(current.body)); }
+  function resolvedBody() { return PEOPL_MD.cleanBody(resolve(current.body, PEOPL_MD.OMIT)); }
   function resolvedSubject() { return current.subject ? cleanSubject(resolve(current.subject)) : ""; }
 
   function updatePreview() {
