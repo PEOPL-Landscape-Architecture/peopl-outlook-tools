@@ -21,7 +21,10 @@ Clicking the toolbar icon — or pressing **Alt+Shift+E** — opens the tool in 
 **resizable window** that floats beside Outlook and **stays open** while you work. This works
 whether Outlook is a normal browser tab **or installed as an app / PWA** (app windows don't
 show the toolbar popup or side panel, so a separate window is used). Snap it next to Outlook
-with **Win + ←/→**; resize it to whatever's comfortable.
+with **Win + ←/→**; resize it to whatever's comfortable. It **reopens at the size and position
+you left it** (v1.5.1; a maximised window isn't remembered, and a position on a monitor that's
+gone falls back to the default spot). Clicking the icon again brings the open window forward
+instead of opening a second one.
 
 > Inside an Outlook **app window** there's no toolbar icon — use **Alt+Shift+E**, or the app
 > window's **"…" → Extensions → PEOPL Email Templates**, to open the tool.

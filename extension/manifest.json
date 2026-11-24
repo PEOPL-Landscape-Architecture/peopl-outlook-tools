@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PEOPL Email Templates",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Pick an email template and swap words, phrases and paragraphs with dropdowns, then fill the Outlook compose window, attachments included. Opens in its own resizable window; includes a built-in template editor. Can fill To, Cc and names from a person or firm in the local Twenty CRM.",
   "action": {
     "default_title": "PEOPL Email Templates (Alt+Shift+E)",
