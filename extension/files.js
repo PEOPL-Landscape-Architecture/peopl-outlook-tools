@@ -33,8 +33,8 @@
   }
   function helperError(raw) {
     if (/not found|not registered|forbidden/i.test(raw || ""))
-      return "Edge can't reach the attachment helper (" + raw + "). Fully restart Edge (edge://restart); " +
-             "if it persists, re-run native-host\\install.ps1 (see README).";
+      return "Edge can't reach the attachment helper (" + raw + "). Run native-host\\install.ps1 " +
+             "(see README), then try again.";
     return "Attachment helper stopped" + (raw ? ": " + raw : "") + ".";
   }
 

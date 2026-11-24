@@ -2,6 +2,9 @@
 # pings the com.peopl.files helper from the extension's own page. Needs: pip websockets.
 #   python -I native-host\test-in-edge.py <repo>\extension
 # Prints 'native: REPLY {...ok...}' when Edge can reach the helper.
+# CAUTION: an Edge started from a terminal inside the Claude desktop app shares that app's
+# private registry view, so this can pass while the user's own Edge still can't see the host.
+# Check the real view with an outside process: WMI Win32_Process.Create + reg query.
 import asyncio, json, subprocess, sys, time, urllib.request, os, tempfile, shutil
 import websockets
 
@@ -56,4 +59,5 @@ finally:
     try: proc.wait(timeout=10)
     except Exception: proc.kill()
     shutil.rmtree(udd, ignore_errors=True)
+
 
