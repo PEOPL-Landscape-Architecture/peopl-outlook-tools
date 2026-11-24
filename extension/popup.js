@@ -55,7 +55,8 @@
   function cacheEls() {
     ["app", "tpl", "forms", "form-save", "form-saveas", "form-del", "slots", "pv-meta", "pv-body",
      "btn-insert", "btn-copy", "btn-reset", "btn-edit", "editor-panel", "editor-frame",
-     "editor-close", "status"]
+     "editor-close", "status", "crm-q", "crm-list", "crm-clear", "crm-gear", "crm-settings",
+     "crm-url", "crm-key", "crm-save"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
   }
 
@@ -98,6 +99,83 @@
     els.formSave.addEventListener("click", onSave);
     els.formSaveas.addEventListener("click", onSaveAs);
     els.formDel.addEventListener("click", onDeleteForm);
+    wireTwenty();
+  }
+
+  // ---- Fill from Twenty (read-only lookup, see twenty.js) -----------------
+  var crmEntries = null, crmLoadedAt = 0, crmLoading = false;
+
+  function wireTwenty() {
+    if (!window.PEOPL_TWENTY || !els.crmQ) return;
+    els.crmQ.addEventListener("focus", function () { ensureContacts(false); });
+    els.crmQ.addEventListener("input", function () {
+      var v = els.crmQ.value;
+      var hit = (crmEntries || []).filter(function (e) { return e.label === v; })[0];
+      if (hit) applyEntry(hit);
+    });
+    els.crmClear.addEventListener("click", function () { els.crmQ.value = ""; els.crmQ.focus(); });
+    els.crmGear.addEventListener("click", function () {
+      var open = els.crmSettings.hidden;
+      els.crmSettings.hidden = !open;
+      if (open) PEOPL_TWENTY.loadSettings(function (s) { els.crmUrl.value = s.url; els.crmKey.value = s.key; });
+    });
+    els.crmSave.addEventListener("click", function () {
+      PEOPL_TWENTY.saveSettings({ url: els.crmUrl.value, key: els.crmKey.value }, function () {
+        crmEntries = null;
+        ensureContacts(true, function (ok) { if (ok) els.crmSettings.hidden = true; });
+      });
+    });
+  }
+
+  function ensureContacts(announce, cb) {
+    cb = cb || function () {};
+    if (crmLoading) return cb(false);
+    if (crmEntries && Date.now() - crmLoadedAt < 60000) { if (announce) announceContacts(); return cb(true); }
+    crmLoading = true;
+    PEOPL_TWENTY.loadSettings(function (s) {
+      PEOPL_TWENTY.fetchContacts(s, function (err, list) {
+        crmLoading = false;
+        if (err) { setStatus(err, "err"); return cb(false); }
+        crmEntries = list; crmLoadedAt = Date.now();
+        els.crmList.innerHTML = "";
+        list.forEach(function (e) {
+          var o = document.createElement("option"); o.value = e.label; els.crmList.appendChild(o);
+        });
+        if (announce) announceContacts();
+        cb(true);
+      });
+    });
+  }
+  function announceContacts() {
+    var people = crmEntries.filter(function (e) { return e.kind === "person"; }).length;
+    setStatus("Connected to Twenty ✓ (" + people + " people, " + (crmEntries.length - people) + " firms)", "ok");
+  }
+
+  // Put the picked contact's values into every linked field of the current template.
+  function applyEntry(entry) {
+    if (!current) return;
+    var filled = [], blank = [], linked = 0;
+    tokenOrder.forEach(function (id) {
+      var slot = (current.slots && current.slots[id]) || {};
+      if (slot.options) return;                       // dropdowns are never filled from the CRM
+      var role = PEOPL_TWENTY.roleFor(id, slot);
+      if (!role) return;
+      var v = PEOPL_TWENTY.valueFor(role, entry);
+      if (v == null) return;
+      linked++;
+      formValues[id] = v;
+      if (v) filled.push(slot.label || prettify(id));
+      else if (!slot.optional) blank.push(slot.label || prettify(id));   // an empty optional field (e.g. Cc) is fine
+    });
+    if (!linked) {
+      setStatus("This template has no fields linked to Twenty — link them in ✎ Edit templates (Fill from Twenty).", "err");
+      return;
+    }
+    els.forms.value = ""; currentFormId = null;
+    renderTemplate(current);
+    var msg = "Filled from Twenty: " + (filled.join(", ") || "nothing");
+    if (blank.length) msg += " · empty in Twenty: " + blank.join(", ");
+    setStatus(msg, blank.length ? "err" : "ok");
   }
 
   // ---- editor slide-out panel --------------------------------------------
@@ -359,6 +437,7 @@
   function onReset() {
     formValues = {}; formIncluded = {};
     els.forms.value = ""; currentFormId = null;
+    if (els.crmQ) els.crmQ.value = "";
     if (current) renderTemplate(current);
     setStatus("Form cleared.", "");
   }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PEOPL Email Templates",
-  "version": "1.3.1",
-  "description": "Pick an email template and swap words, phrases and paragraphs with dropdowns, then fill the Outlook compose window. Opens in its own resizable window; includes a built-in template editor.",
+  "version": "1.4.0",
+  "description": "Pick an email template and swap words, phrases and paragraphs with dropdowns, then fill the Outlook compose window. Opens in its own resizable window; includes a built-in template editor. Can fill To, Cc and names from a person or firm in the local Twenty CRM.",
   "action": {
     "default_title": "PEOPL Email Templates (Alt+Shift+E)",
     "default_icon": {
@@ -12,11 +12,15 @@
       "128": "icons/icon-128.png"
     }
   },
-  "background": { "service_worker": "sw.js" },
+  "background": {
+    "service_worker": "sw.js"
+  },
   "options_page": "editor.html",
   "commands": {
     "open_templates": {
-      "suggested_key": { "default": "Alt+Shift+E" },
+      "suggested_key": {
+        "default": "Alt+Shift+E"
+      },
       "description": "Open PEOPL Email Templates"
     }
   },
@@ -26,12 +30,18 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["scripting", "clipboardWrite", "storage"],
+  "permissions": [
+    "scripting",
+    "clipboardWrite",
+    "storage"
+  ],
   "host_permissions": [
     "https://outlook.office.com/*",
     "https://outlook.office365.com/*",
     "https://outlook.live.com/*",
     "https://outlook.cloud.microsoft/*",
-    "https://*.outlook.com/*"
+    "https://*.outlook.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ]
 }

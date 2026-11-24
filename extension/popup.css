@@ -43,7 +43,13 @@ label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px
 .slot-head { display: flex; align-items: center; gap: 6px; cursor: default; }
 .slot-head input[type="checkbox"] { margin: 0; cursor: pointer; }
 .slot input:disabled, .slot select:disabled, .slot textarea:disabled { opacity: .45; }
-select, input[type="text"], textarea {
+.crm-head { display: flex; align-items: baseline; justify-content: space-between; }
+.crm-head label { margin-bottom: 3px; }
+.forms-row input[type="text"] { flex: 1; min-width: 0; }
+.crm-settings { margin-top: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
+.crm-settings[hidden] { display: none; }
+.crm-settings input { margin-bottom: 6px; }
+select, input[type="text"], input[type="password"], textarea {
   width: 100%; padding: 6px 8px; font: inherit; color: var(--fg);
   background: var(--field-bg); border: 1px solid var(--line); border-radius: 4px;
 }

@@ -39,6 +39,25 @@ with **Win + ←/→**; resize it to whatever's comfortable.
 > custom control). Glance at them after inserting — if one didn't fill, set it manually,
 > or use **Copy** for the body. Everything is shown in the preview so it's easy to check.
 
+### Fill from Twenty (CRM) — v1.4
+The **Fill from Twenty** box (under Template) looks up a person or firm in the local
+**Twenty CRM** (default `http://localhost:3000`) and fills the template's linked fields.
+It only reads from Twenty and writes nothing back.
+
+- **One-time setup:** click **⚙ Twenty**, paste an API key (in Twenty: **Settings → APIs &
+  Webhooks → Create API key**), then **Save & test**. You should see "Connected to Twenty ✓".
+  The key is kept in this browser's extension storage only, never in Export or in this repo.
+- **Use:** type part of a name, then pick "Person — Firm" or "Firm (firm, no person)" from the list.
+  The status line says which fields were filled and which were empty in Twenty.
+- **Which fields fill:** each text or paragraph field has a **Fill from Twenty** setting in
+  **✎ Edit templates**: the person's email (or the firm's email if the person has none), the firm's
+  email (left blank if it is already the To address), first name, full name, job title, or firm
+  name. Fields named `primary-email`, `secondary-email` and `attention` are linked by default
+  (person email, firm email, first name); pick "— not linked —" to switch one off.
+- An optional field keeps its include / skip tick. For example, the architect follow-up's Cc is
+  filled with the firm's address but stays off until you tick it.
+- If Twenty isn't running, the status line says so and the rest of the tool works as before.
+
 ### Saved forms & remembered entries
 - The form **remembers what you've typed** — switching templates, or editing one, keeps your
   entries (matched by field name). **Reset** clears them back to the template defaults.
@@ -97,3 +116,5 @@ the extension at `chrome://extensions`.
   on the tab you're looking at, only when you click the button, and sends nothing
   anywhere — all processing is local.
 - Templates are saved locally in your browser (`chrome.storage`); nothing is uploaded.
+- **Fill from Twenty** makes one read-only request to your own Twenty server (localhost by
+  default, the only non-Outlook host permission) when you use the box; nothing else is contacted.

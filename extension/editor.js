@@ -383,8 +383,29 @@
       di.addEventListener("input", function () { slot.default = di.value; updatePreview(); scheduleSave(); });
       if (type === "textarea") { dRow.appendChild(PEOPL_TT.bar(di)); rememberHeight(di, "d:" + t.id + ":" + tok); }
       dRow.appendChild(di); card.appendChild(dRow);
+      if (window.PEOPL_TWENTY) card.appendChild(crmRow(slot, tok));
     }
     return card;
+  }
+
+  // "Fill from Twenty": which CRM value this field takes when a contact is picked.
+  function crmRow(slot, tok) {
+    var row = document.createElement("div"); row.className = "row";
+    row.innerHTML = '<label class="group-label">Fill from Twenty (when you pick a person or firm)</label>';
+    var sel = document.createElement("select");
+    var curRole = PEOPL_TWENTY.roleFor(tok, slot);
+    PEOPL_TWENTY.ROLES.forEach(function (r) {
+      var op = document.createElement("option"); op.value = r.v; op.textContent = r.label;
+      if (r.v === curRole) op.selected = true;
+      sel.appendChild(op);
+    });
+    sel.addEventListener("change", function () {
+      // matches the built-in default for this field name -> store nothing
+      if (sel.value === (PEOPL_TWENTY.DEFAULT_ROLES[tok] || "")) delete slot.crm; else slot.crm = sel.value;
+      scheduleSave();
+    });
+    row.appendChild(sel);
+    return row;
   }
 
   function changeType(slot, newType) {

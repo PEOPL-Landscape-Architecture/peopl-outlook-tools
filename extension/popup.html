@@ -19,6 +19,27 @@
           <select id="tpl" autocomplete="off"></select>
         </section>
 
+        <section class="field crm">
+          <div class="crm-head">
+            <label for="crm-q">Fill from Twenty</label>
+            <button id="crm-gear" class="linkbtn" type="button" title="Twenty address and API key">&#9881; Twenty</button>
+          </div>
+          <div class="forms-row">
+            <input id="crm-q" type="text" list="crm-list" autocomplete="off" placeholder="Type a person or firm&hellip;" />
+            <button id="crm-clear" class="iconbtn" type="button" title="Clear the search (fields keep their values)">&times;</button>
+          </div>
+          <datalist id="crm-list"></datalist>
+          <div id="crm-settings" class="crm-settings" hidden>
+            <label for="crm-url">Twenty address</label>
+            <input id="crm-url" type="text" autocomplete="off" />
+            <label for="crm-key">API key (Twenty: Settings &rarr; APIs &amp; Webhooks)</label>
+            <input id="crm-key" type="password" autocomplete="off" />
+            <div class="forms-row">
+              <button id="crm-save" class="secondary" type="button">Save &amp; test</button>
+            </div>
+          </div>
+        </section>
+
         <section class="field forms">
           <label for="forms">Saved forms</label>
           <div class="forms-row">
@@ -65,6 +86,7 @@
   <script src="store.js"></script>
   <script src="format.js"></script>
   <script src="texttools.js"></script>
+  <script src="twenty.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
