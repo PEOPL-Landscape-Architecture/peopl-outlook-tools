@@ -57,8 +57,12 @@
   // Preview version: inherits the panel's text colour.
   function toHtml(src) { return render(src); }
 
-  // Email/clipboard version: explicit black text, same markup as the preview.
-  function toEmailHtml(src) { return '<div style="color:#000000">' + render(src) + "</div>"; }
+  // Email/clipboard version: same markup as the preview, with NO colour and NO
+  // wrapper, so the text takes Outlook's own default colour like typed text
+  // (light in dark mode, black when sent). A forced #000 wrapper showed as
+  // black-on-dark in dark-mode compose, and backspacing it into Outlook's first
+  // line left a stray empty line at the top (2026-11-24).
+  function toEmailHtml(src) { return render(src); }
 
   // Tidies a resolved body. A line that held nothing but omitted/empty fields
   // (marked with OMIT by the caller's resolver) is removed together with the
