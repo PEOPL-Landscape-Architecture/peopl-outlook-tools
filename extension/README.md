@@ -63,7 +63,9 @@ Files are attached by **path**, so the latest version of the file goes out each 
 
 - **One-time setup:** run `native-host\install.ps1` (below). It registers a small local helper
   that the extension needs to open the Windows file dialog and read the files; a browser
-  extension can do neither by itself. Then reload the extension.
+  extension can do neither by itself. Then **fully restart Edge** with `edge://restart`
+  (an Edge that was already running when the helper was registered can't see it; closing the
+  windows isn't enough while startup boost keeps Edge running).
 - **In a template** (✎ Edit templates): the **Attachments** box under Bcc takes one file path per
   line (`{{fields}}` work too). **Browse…** opens the Windows dialog and adds the full paths.
 - **Per email:** the compose form's **Attachments** box is prefilled from the template. Change
