@@ -56,7 +56,7 @@
     ["app", "tpl", "forms", "form-save", "form-saveas", "form-del", "slots", "pv-meta", "pv-body",
      "btn-insert", "btn-copy", "btn-reset", "btn-edit", "editor-panel", "editor-frame",
      "editor-close", "status", "crm-q", "crm-list", "crm-clear", "crm-gear", "crm-settings",
-     "crm-url", "crm-key", "crm-save"]
+     "crm-url", "crm-key", "crm-save", "att", "att-browse", "att-list"]
       .forEach(function (id) { els[camel(id)] = document.getElementById(id); });
   }
 
@@ -88,8 +88,10 @@
     els.tpl.addEventListener("change", function () {
       current = TEMPLATES[Number(els.tpl.value)] || null;
       els.forms.value = ""; currentFormId = null;
+      delete formValues[ATT];                 // attachments belong to a template: take the new one's
       if (current) renderTemplate(current);   // retains formValues across the switch
     });
+    wireAttachments();
     els.btnInsert.addEventListener("click", onInsert);
     els.btnCopy.addEventListener("click", onCopy);
     els.btnReset.addEventListener("click", onReset);
@@ -101,6 +103,57 @@
     els.formDel.addEventListener("click", onDeleteForm);
     wireTwenty();
   }
+
+  // ---- Attachments (file paths; see files.js + native-host/) --------------
+  // The template's "attachments" text (paths, {{fields}} allowed) prefills the
+  // box; edits are kept in formValues[ATT] (and in saved forms) until Reset or
+  // a template switch.
+  var ATT = "__attachments";
+  var attTimer = null, attSeq = 0;
+
+  function wireAttachments() {
+    if (!els.att) return;
+    els.att.addEventListener("input", function () {
+      values[ATT] = els.att.value; formValues[ATT] = els.att.value;
+      scheduleAttCheck(); updatePreview();
+    });
+    els.attBrowse.addEventListener("click", function () {
+      var first = PEOPL_FILES.parse(els.att.value)[0] || "";
+      setStatus("Choose files in the Windows dialog…", "");
+      PEOPL_FILES.pick(first, function (err, paths) {
+        if (err) { setStatus(err, "err"); return; }
+        if (!paths.length) { setStatus("", ""); return; }
+        var have = PEOPL_FILES.parse(els.att.value);
+        paths.forEach(function (p) { if (have.indexOf(p) < 0) have.push(p); });
+        els.att.value = have.join("\n");
+        values[ATT] = els.att.value; formValues[ATT] = els.att.value;
+        setStatus("Added " + paths.length + " file" + (paths.length === 1 ? "" : "s") + ".", "ok");
+        checkAttachments(); updatePreview();
+      });
+    });
+  }
+  function renderAttachments(t) {
+    if (!els.att) return;
+    var txt = Object.prototype.hasOwnProperty.call(formValues, ATT) ? formValues[ATT] : resolve(t.attachments || "");
+    els.att.value = txt; values[ATT] = txt;
+    checkAttachments();
+  }
+  function attachmentPaths() { return PEOPL_FILES.parse(values[ATT]); }
+  function scheduleAttCheck() { clearTimeout(attTimer); attTimer = setTimeout(checkAttachments, 500); }
+  function checkAttachments() {
+    var paths = attachmentPaths(), seq = ++attSeq;
+    if (!paths.length) { els.attList.innerHTML = ""; return; }
+    PEOPL_FILES.stat(paths, function (err, files) {
+      if (seq !== attSeq) return;
+      if (err) { els.attList.innerHTML = '<div class="bad">' + esc(err) + "</div>"; return; }
+      els.attList.innerHTML = files.map(function (f) {
+        return f.exists
+          ? '<div class="ok">' + esc(f.name) + " <span class=\"muted\">(" + kb(f.size) + ")</span></div>"
+          : '<div class="bad">Not found: ' + esc(f.path) + "</div>";
+      }).join("");
+    });
+  }
+  function kb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB"; }
 
   // ---- Fill from Twenty (read-only lookup, see twenty.js) -----------------
   var crmEntries = null, crmLoadedAt = 0, crmLoading = false;
@@ -311,6 +364,7 @@
       els.slots.appendChild(wrap);
     });
 
+    renderAttachments(t);
     updatePreview();
   }
 
@@ -340,6 +394,7 @@
     var cc = recipients(current.cc); if (cc) meta.push(["Cc", cc]);
     var bcc = recipients(current.bcc); if (bcc) meta.push(["Bcc", bcc]);
     var subj = resolvedSubject(); if (subj) meta.push(["Subject", subj]);
+    var att = attachmentPaths().map(PEOPL_FILES.baseName); if (att.length) meta.push(["Attach", att.join("; ")]);
     els.pvMeta.innerHTML = meta.map(function (m) {
       return '<div class="pv-line"><span class="k">' + m[0] + ':</span> ' + esc(m[1]) + "</div>";
     }).join("");
@@ -454,17 +509,79 @@
       setStatus("Insert works inside the browser extension — use Copy here.", "err");
       return;
     }
+    var paths = attachmentPaths();
     resolveOutlookTab(function (tabId) {
       if (tabId == null) { setStatus("Open Outlook in a window first, then click Insert.", "err"); return; }
+      if (!paths.length) { fill(tabId, null); return; }
+      setStatus("Reading " + paths.length + " attachment" + (paths.length === 1 ? "" : "s") + "…", "");
+      PEOPL_FILES.readAll(paths, function (err, files) {
+        if (err) { setStatus(err + " Nothing was inserted.", "err"); return; }
+        fill(tabId, files);
+      });
+    });
+
+    function fill(tabId, files) {
       chrome.scripting.executeScript(
         { target: { tabId: tabId }, func: pageFill, args: [payload] },
         function (results) {
           if (chrome.runtime.lastError) { setStatus("Couldn't reach the Outlook window — use Copy, then paste.", "err"); return; }
           var r = (results && results[0] && results[0].result) || {};
-          setStatus(summarize(payload, r), r.body ? "ok" : "err");
+          var msg = summarize(payload, r);
+          if (!files || !files.length) { setStatus(msg, r.body ? "ok" : "err"); return; }
+          chrome.scripting.executeScript(
+            { target: { tabId: tabId }, func: pageAttach, args: [files] },
+            function (res2) {
+              var a = (!chrome.runtime.lastError && res2 && res2[0] && res2[0].result) || {};
+              var names = files.map(function (f) { return f.name; }).join(", ");
+              if (a.ok) setStatus(msg + " Attached: " + names + " ✓ (check the attachment bar).", "ok");
+              else setStatus(msg + " Couldn't attach " + names + (a.error ? " (" + a.error + ")" : "") +
+                             " — drag the files in, or use Attach in Outlook.", "err");
+            }
+          );
         }
       );
-    });
+    }
+  }
+
+  // Runs IN the Outlook page. Rebuilds the files and hands them to Outlook the
+  // way a user would: first through Outlook's own file input (what
+  // "Attach > Browse this computer" uses), else by dropping them on the
+  // message body. Outlook shows dropped files in its attachment bar.
+  function pageAttach(files) {
+    try {
+      var dt = new DataTransfer();
+      files.forEach(function (f) {
+        var bin = atob(f.b64), bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        dt.items.add(new File([bytes], f.name, { type: f.type, lastModified: Date.now() }));
+      });
+      function visible(el) { return el && el.offsetParent !== null; }
+      var body = null;
+      var eds = document.querySelectorAll('[contenteditable="true"][aria-label*="essage body" i],[contenteditable="true"][role="textbox"],div[contenteditable="true"]');
+      for (var j = 0; j < eds.length; j++) { if (visible(eds[j]) && eds[j].offsetHeight > 60) { body = eds[j]; break; } }
+
+      // 1) Outlook's attach input (not image-only ones used for inline pictures).
+      var inputs = Array.prototype.slice.call(document.querySelectorAll('input[type="file"]')).filter(function (inp) {
+        var acc = (inp.getAttribute("accept") || "").toLowerCase();
+        return !acc || acc === "*" || acc.indexOf("*/*") >= 0;
+      });
+      if (inputs.length) {
+        var inp = inputs.filter(function (x) { return x.multiple; })[0] || inputs[0];
+        inp.files = dt.files;
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+        inp.dispatchEvent(new Event("change", { bubbles: true }));
+        return { ok: true, via: "input" };
+      }
+      // 2) Drop on the message body.
+      if (!body) return { ok: false, error: "no message body found" };
+      var rect = body.getBoundingClientRect();
+      var x = rect.left + Math.min(40, rect.width / 2), y = rect.top + Math.min(40, rect.height / 2);
+      ["dragenter", "dragover", "drop"].forEach(function (type) {
+        var ev = new DragEvent(type, { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, dataTransfer: dt });
+        body.dispatchEvent(ev);
+      });
+      return { ok: true, via: "drop" };
+    } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
   }
 
   function resolveOutlookTab(cb) {
@@ -603,7 +720,10 @@
           "text/plain": new Blob([plain], { type: "text/plain" })
         });
         navigator.clipboard.write([item]).then(
-          function () { setStatus("Copied with formatting ✓ — paste into your email.", "ok"); },
+          function () {
+            setStatus("Copied with formatting ✓ — paste into your email." +
+              (attachmentPaths().length ? " Attachments aren't copied: use Insert, or attach them in Outlook." : ""), "ok");
+          },
           plainCopy
         );
         return;

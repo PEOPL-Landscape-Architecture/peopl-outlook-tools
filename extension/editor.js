@@ -221,6 +221,7 @@
     pane.appendChild(rowInput("To", "f-to", t.to || "", function (v) { t.to = v; rebuildFields(); updatePreview(); }));
     pane.appendChild(rowInput("Cc", "f-cc", t.cc || "", function (v) { t.cc = v; rebuildFields(); updatePreview(); }));
     pane.appendChild(rowInput("Bcc", "f-bcc", t.bcc || "", function (v) { t.bcc = v; rebuildFields(); updatePreview(); }));
+    pane.appendChild(attachmentsRow(t));
 
     // body + toolbar
     var bodyRow = document.createElement("div");
@@ -262,6 +263,43 @@
 
     rebuildFields();
     updatePreview();
+  }
+
+  // Attachments: file paths, one per line ({{fields}} allowed); Browse opens the
+  // Windows dialog through the native helper (files.js). The compose form shows
+  // them prefilled and lets you change them per email.
+  function attachmentsRow(t) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var l = document.createElement("label"); l.setAttribute("for", "f-att");
+    l.textContent = "Attachments (optional) — one file path per line; attached when you click Insert";
+    var ta = document.createElement("textarea");
+    ta.id = "f-att"; ta.rows = 2; ta.spellcheck = false; ta.value = t.attachments || "";
+    ta.placeholder = "e.g. G:\\MARKETING\\Lynx brochure.pdf";
+    ta.style.fontFamily = '"Cascadia Mono", Consolas, monospace'; ta.style.fontSize = "11px";
+    ta.addEventListener("input", function () { t.attachments = ta.value; updatePreview(); scheduleSave(); });
+    var bar = document.createElement("div");
+    bar.className = "body-toolbar";
+    var b = document.createElement("button");
+    b.className = "btn tiny"; b.type = "button"; b.textContent = "Browse…";
+    b.title = "Choose files in the Windows dialog";
+    var note = document.createElement("span"); note.className = "hint";
+    b.addEventListener("click", function () {
+      if (!window.PEOPL_FILES) return;
+      note.textContent = "Choose files in the Windows dialog…";
+      PEOPL_FILES.pick(PEOPL_FILES.parse(ta.value)[0] || "", function (err, paths) {
+        if (err) { note.textContent = err; return; }
+        note.textContent = paths.length ? "Added " + paths.length + "." : "";
+        if (!paths.length) return;
+        var have = PEOPL_FILES.parse(ta.value);
+        paths.forEach(function (p) { if (have.indexOf(p) < 0) have.push(p); });
+        ta.value = have.join("\n"); t.attachments = ta.value;
+        updatePreview(); scheduleSave();
+      });
+    });
+    bar.appendChild(b); bar.appendChild(note);
+    row.appendChild(l); row.appendChild(ta); row.appendChild(bar);
+    return row;
   }
 
   function rowInput(labelText, id, value, onInput) {
@@ -530,6 +568,10 @@
     var cc = recipPreview(t.cc, t); if (cc) meta.push(["Cc", cc]);
     var bcc = recipPreview(t.bcc, t); if (bcc) meta.push(["Bcc", bcc]);
     var subj = cleanSubject(resolvePreview(t.subject, t)); if (subj) meta.push(["Subject", subj]);
+    if (window.PEOPL_FILES) {
+      var att = PEOPL_FILES.parse(resolvePreview(t.attachments || "", t)).map(PEOPL_FILES.baseName);
+      if (att.length) meta.push(["Attach", att.join("; ")]);
+    }
     var m = byId("pv-meta");
     if (m) m.innerHTML = meta.map(function (x) {
       return '<div class="pv-line"><span class="k">' + x[0] + ':</span> ' + esc(x[1]) + "</div>";

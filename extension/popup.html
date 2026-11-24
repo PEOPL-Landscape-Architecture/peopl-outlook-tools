@@ -52,6 +52,15 @@
 
         <section id="slots" class="slots"><!-- controls generated here --></section>
 
+        <section class="field attach">
+          <div class="crm-head">
+            <label for="att">Attachments <span class="muted">(one file path per line)</span></label>
+            <button id="att-browse" class="secondary small" type="button" title="Choose files in the Windows dialog">Browse&hellip;</button>
+          </div>
+          <textarea id="att" rows="2" spellcheck="false" placeholder="e.g. G:\MARKETING\Lynx brochure.pdf"></textarea>
+          <div id="att-list" class="att-list"></div>
+        </section>
+
         <section class="actions">
           <button id="btn-insert" class="primary" type="button">Insert into email</button>
           <button id="btn-copy" class="secondary" type="button">Copy</button>
@@ -87,6 +96,7 @@
   <script src="format.js"></script>
   <script src="texttools.js"></script>
   <script src="twenty.js"></script>
+  <script src="files.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

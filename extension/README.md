@@ -58,6 +58,29 @@ It only reads from Twenty and writes nothing back.
   filled with the firm's address but stays off until you tick it.
 - If Twenty isn't running, the status line says so and the rest of the tool works as before.
 
+### Attachments — v1.5
+Files are attached by **path**, so the latest version of the file goes out each time.
+
+- **One-time setup:** run `native-host\install.ps1` (below). It registers a small local helper
+  that the extension needs to open the Windows file dialog and read the files; a browser
+  extension can do neither by itself. Then reload the extension.
+- **In a template** (✎ Edit templates): the **Attachments** box under Bcc takes one file path per
+  line (`{{fields}}` work too). **Browse…** opens the Windows dialog and adds the full paths.
+- **Per email:** the compose form's **Attachments** box is prefilled from the template. Change
+  or add paths, or use **Browse…**. Each file shows its size, or "Not found" in red.
+  Switching template takes the new template's list; **Reset** goes back to it; saved forms keep it.
+- **Insert** reads the files, fills the email, then hands the files to Outlook through its own
+  attach input (or drops them on the message body). Check Outlook's attachment bar. If a file
+  didn't attach, drag it in. **Copy** doesn't carry attachments.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "<repo>\native-host\install.ps1"
+```
+It registers `com.peopl.files` for Edge and Chrome under your user only (no admin), allowed for
+this extension's ID only (`ejljeppjlklbgklmfbcgnjnojdefmbci`, the ID Edge gives this unpacked
+folder). If you move the folder, or the ID shown at `edge://extensions` changes, re-run it with
+`-ExtensionId <new id>`. Remove it with `-Uninstall`.
+
 ### Saved forms & remembered entries
 - The form **remembers what you've typed** — switching templates, or editing one, keeps your
   entries (matched by field name). **Reset** clears them back to the template defaults.
@@ -88,7 +111,8 @@ tab too.) The editor:
   bold / italics / lists / links — so a dropdown option can be a bold sentence or a numbered block.
   Pressing **Enter** in a numbered/bulleted list **auto-continues** it (Enter on an empty item ends
   the list). The main compose window's paragraph fields have the same toolbar. The **colour swatch**
-  (defaults to black) colours the selected text. Inserted email text is black, and line spacing is
+  (defaults to black) colours the selected text. Inserted email text takes Outlook's own default
+  colour, like typed text (so it reads correctly in dark mode; v1.5), and line spacing is
   exactly as typed — every blank line in the body is a blank line in the email (two in a row = two).
 - **Fields** — each `{{field}}` gets a card. Pick its type:
   - **Text field** / **Paragraph field** → a fill-in box (with optional placeholder + default).
@@ -118,3 +142,6 @@ the extension at `chrome://extensions`.
 - Templates are saved locally in your browser (`chrome.storage`); nothing is uploaded.
 - **Fill from Twenty** makes one read-only request to your own Twenty server (localhost by
   default, the only non-Outlook host permission) when you use the box; nothing else is contacted.
+- **Attachments** go through the local helper `com.peopl.files` (`native-host/`): it only shows
+  the Open dialog, checks the paths you list, and reads those files for this extension. It runs
+  only while the extension is using it and has no network access of its own.
